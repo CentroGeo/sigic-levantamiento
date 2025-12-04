@@ -526,7 +526,7 @@ projectsController.raisingProjectsUserList = async (req, res) => {
 		from levantamientos l 
 		inner join users u on l.usuario_id = u.email
 		inner join users_info i on u.id = i.user_id
-    inner join proyectos p on l.proyecto_id = p.id
+    inner join proyectos p on l.id_proyecto = p.id
 		LEFT join users uc on l.id_curador = uc.email
 		LEFT join users_info ic on uc.id = ic.user_id
 		where u.email = '${req.body.email}' and p.id = ${req.params.project}

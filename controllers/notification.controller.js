@@ -14,10 +14,10 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
 			l.*, l.nombre_descarga as title, u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario,
 			uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
 		FROM public.descargas as l
-		LEFT join users u on l.usuario_id = u.id
-		LEFT join users_info i on l.usuario_id = i.user_id
-		LEFT join users uc on l.id_curador = uc.id
-		LEFT join users_info ic on l.id_curador = ic.user_id
+    inner join users u on l.usuario_id = u.email
+    inner join users_info i on u.id = i.user_id
+    left join users uc on l.id_curador = uc.email
+    LEFT join users_info ic on uc.id = ic.user_id
 		where u.email = '${req.body.email}' and l.es_notificado = true
 	`
 
@@ -47,13 +47,12 @@ notificationController.raisingOwnershipNotification = async (req, res) => {
       return res.status(400).send({ message: "Correo electrónico faltante" });
   
     let query = `
-          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador, cat.nombre cat_principal, cat.color
+          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
           from levantamientos l 
-          inner join users u on l.usuario_id = u.id
-          inner join users_info i on l.usuario_id = i.user_id
-          left join users uc on l.id_curador = uc.id
-          left join users_info ic on l.id_curador = ic.user_id
-          inner join categories_main cat on cat.id = l.id_cat_principal
+          inner join users u on l.usuario_id = u.email
+          inner join users_info i on u.id = i.user_id
+          left join users uc on l.id_curador = uc.email
+          LEFT join users_info ic on uc.id = ic.user_id
           where u.email = '${req.body.email}' and l.es_notificado = true
       `;
   
@@ -87,10 +86,10 @@ notificationController.projectsOwnershipNotification = async (req, res) => {
               u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador, 
               l.region as ruta, CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder 
           from proyectos l 
-          left join users u on l.id_propietario = u.id
-          left join users_info i on l.id_propietario = i.user_id
-          left join users uc on l.id_curador = uc.id
-          left join users_info ic on l.id_curador = ic.user_id
+          inner join users u on l.id_propietario = u.email
+          inner join users_info i on u.id = i.user_id
+          left join users uc on l.id_curador = uc.email
+          left join users_info ic on uc.id = ic.user_id
           where u.email = '${req.body.email}' and l.es_notificado = true
       `;
   
@@ -119,13 +118,12 @@ notificationController.raisingReviewerNotifications = async (req, res) => {
       return res.status(400).send({ message: "Correo electrónico faltante" });
   
     let query = `
-          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador, cat.nombre cat_principal, cat.color
+          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
           from levantamientos l 
-          inner join users u on l.usuario_id = u.id
-          inner join users_info i on l.usuario_id = i.user_id
-          left join users uc on l.id_curador = uc.id
-          left join users_info ic on l.id_curador = ic.user_id
-          inner join categories_main cat on cat.id = l.id_cat_principal
+          inner join users u on l.usuario_id = u.email
+		  inner join users_info i on u.id = i.user_id
+		  left join users uc on l.id_curador = uc.email
+		  left join users_info ic on uc.id = ic.user_id
           where uc.email = '${req.body.email}' and l.curador_notificado = true
       `;
 

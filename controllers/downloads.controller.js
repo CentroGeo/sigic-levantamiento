@@ -96,8 +96,8 @@ downloadsController.listUserDownload = async (req, res) => {
 				SELECT l.*, u.email,i.nombre nombre_usuario,i.apellido apellido_usuario, i.edad, i.sexo, i.nivel_estudios, i.idioma, i.ocupacion, proys.nombre as nombre_proyecto 
 				FROM levantamientos l 
 				inner join users u on l.usuario_id = u.email
-				inner join users_info i on u.id = i.user_id 
-				LEFT JOIN proyectos AS proys ON l.id_proyecto = proys.id
+				left join users_info i on l.usuario_id = i.user_id
+				left join proyectos AS proys ON l.id_proyecto = proys.id
 				WHERE l.status = 'APROBADO'	
 				and l.id = ${req.body.idLevantamiento}
 			) as t1
