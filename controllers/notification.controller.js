@@ -181,5 +181,27 @@ notificationController.projectsReviewerNotifications = async (req, res) => {
       });
     }
 };
-  
+
+notificationController.notificationController = async (req, res) => {
+  try {
+    const updateSql = {
+      text: `UPDATE public.levantamientos
+                SET es_notificado = false, curador_notificado=false
+                WHERE 
+                  usuario_id = $1
+                returning *`,
+      values: [req.body.email]
+    };
+
+    const { rows } = await databasePool.query(updateSql);
+    return res.status(200).send({
+      status: "ok",
+      message: "levantamiento actualizado"
+    });
+  } catch (error) {
+    return res.status(400).send({ message: error.message });
+  }
+};
+
+
 module.exports = notificationController;

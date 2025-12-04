@@ -8,7 +8,10 @@ router.post("/raisings/owner", notificationController.raisingOwnershipNotificati
 router.post("/projects/owner", notificationController.projectsOwnershipNotification);
 
 
-router.post("/raisings/reviewer", levantamientosController.raisingReviewerNotifications);
-router.post("/projects/reviewer", projectsController.projectsReviewerNotifications);
+router.post("/raisings/reviewer", notificationController.raisingReviewerNotifications);
+router.post("/projects/reviewer", notificationController.projectsReviewerNotifications);
+
+
+router.post("/raising/deactivate", notificationController.raisingDeactivateNotifications);
 
 module.exports = router;
