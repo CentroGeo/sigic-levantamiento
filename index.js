@@ -30,6 +30,7 @@ app.use('/projects', require('./routes/projects.routes'));
 app.use('/raising', require('./routes/levantamientos.routes'));
 app.use('/downloads', require('./routes/downloads.routes'));
 app.use('/catalogs', require('./routes/catalogs.routes.js'));
+app.use('/notifications', require('./routes/notification.routes'));
 
 // api para universidades
 app.use('/', require('./routes/edu.routes'));
