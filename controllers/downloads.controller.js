@@ -12,11 +12,9 @@ downloadsController.listUserDownload = async (req, res) => {
 		const { rows } = await databasePool.query({
 			text: `
 				SELECT 
-					l.*, u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario
+					l.*
                 FROM public.descargas as l
-                LEFT join users u on l.usuario_id = u.email
-                LEFT join users_info i on u.id = i.user_id
-				WHERE u.email = '${req.body.email}'
+				WHERE l.usuario_id = '${req.body.email}'
 			`,
 		});
 
@@ -93,10 +91,8 @@ downloadsController.listUserDownload = async (req, res) => {
 		let query2 = `
 		SELECT t1.id_proyecto, t1.nombre_proyecto, to_json(array_agg(row_to_json(t1))) as levantamientos
 			from (
-				SELECT l.*, u.email,i.nombre nombre_usuario,i.apellido apellido_usuario, i.edad, i.sexo, i.nivel_estudios, i.idioma, i.ocupacion, proys.nombre as nombre_proyecto 
+				SELECT l.*, proys.nombre as nombre_proyecto 
 				FROM levantamientos l 
-				inner join users u on l.usuario_id = u.email
-				left join users_info i on l.usuario_id = i.user_id
 				left join proyectos AS proys ON l.id_proyecto = proys.id
 				WHERE l.status = 'APROBADO'	
 				and l.id = ${req.body.idLevantamiento}
@@ -432,14 +428,9 @@ downloadsController.listReviewer = async (req, res) => {
 		const { rows } = await databasePool.query({
 			text: `
 				SELECT 
-					l.*, u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario,
-					uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
+					l.*
                 FROM public.descargas as l
-                LEFT join users u on l.usuario_id = u.email
-                LEFT join users_info i on u.id = i.user_id
-				LEFT join users uc on l.id_curador = uc.email
-				LEFT join users_info ic on uc.id = ic.user_id
-				${req.body.category == "ADMINISTRADOR" ? "" : `where (l.status = 'NO REVISADO' or uc.email = '${req.body.email}') and u.email <> '${req.body.email}'`}
+				${req.body.category == "ADMINISTRADOR" ? "" : `where (l.status = 'NO REVISADO' or i.id_curador = '${req.body.email}') and l.usuario_id <> '${req.body.email}'`}
 			`,
 		});
 
@@ -452,7 +443,6 @@ downloadsController.listReviewer = async (req, res) => {
 }
 
 downloadsController.updateStatusReviewer = async (req, res) => {
-	console.log("data", req.body)
 	if (!req.body.status) return res.status(400).send({ message: "Estado faltante" });
 	if (!req.body.report) return res.status(400).send({ message: "Reporte faltante" });
 	if (!req.body.user_id) return res.status(400).send({ message: "ID faltante" });
@@ -508,10 +498,8 @@ downloadsController.listOwnerDownloads = async (req, res) => {
 
 		const { rows } = await databasePool.query({
 			text: `
-				SELECT l.*, u.email,i.nombre nombre_usuario,i.apellido apellido_usuario, i.edad, i.sexo, i.nivel_estudios, i.idioma, i.ocupacion, proys.nombre as nombre_proyecto 
+				SELECT l.*, proys.nombre as nombre_proyecto 
 				FROM levantamientos l 
-				inner join users u on l.usuario_id = u.email
-				inner join users_info i on u.id = i.user_id 
 				LEFT JOIN proyectos AS proys ON l.id_proyecto = proys.id
 				WHERE l.status = 'APROBADO'
 				AND l.id_proyecto = ${req.body.project_id}

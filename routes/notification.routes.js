@@ -12,6 +12,6 @@ router.post("/raisings/reviewer", notificationController.raisingReviewerNotifica
 router.post("/projects/reviewer", notificationController.projectsReviewerNotifications);
 
 
-router.post("/raising/deactivate", notificationController.raisingDeactivateNotifications);
+//router.post("/raising/deactivate", notificationController.raisingDeactivateNotifications);
 
 module.exports = router;

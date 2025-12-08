@@ -389,13 +389,9 @@ levantamientosController.list = async (req, res) => {
     return res.status(400).send({ message: "Correo electrónico faltante" });
 
   let query = `
-		SELECT l.*, l.nombre as title, media_array as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
-		from levantamientos l 
-		inner join users u on l.usuario_id = u.email
-		inner join users_info i on u.id = i.user_id
-		LEFT join users uc on l.id_curador = uc.email
-		LEFT join users_info ic on uc.id = ic.user_id
-		where u.email = '${req.body.email}'
+		SELECT l.*, l.nombre as title, media_array as path_media_folder
+		from levantamientos l
+		where l.usuario_id = '${req.body.email}'
 	`;
 
   try {
@@ -421,10 +417,8 @@ levantamientosController.listChat = async (req, res) => {
   await databasePool
     .query({
       text: `
-			SELECT l.*, b.category as name_category 
+			SELECT l.*
       FROM public.levantamientos_mensajes as l
-			LEFT join users u on l.usuario_id = u.email
-			left join user_categories as b on b.id=u.category
 			where levantamiento_id = ${req.body.id}
 			order by fecha_hora asc
 		`

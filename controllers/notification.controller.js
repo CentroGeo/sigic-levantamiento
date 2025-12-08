@@ -1,6 +1,5 @@
 const Sender = require('../helpers/Sender');
 const { databasePool } = require('../postgres.db');
-const alertaController = require('./alerta.controller');
 const EventEmitter = require('events');
 
 const notificationController = {};
@@ -11,14 +10,9 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
 
 	let query = `
 		SELECT 
-			l.*, l.nombre_descarga as title, u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario,
-			uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
+			l.*, l.nombre_descarga as title, i.nombre as nombre_propietario
 		FROM public.descargas as l
-    inner join users u on l.usuario_id = u.email
-    inner join users_info i on u.id = i.user_id
-    left join users uc on l.id_curador = uc.email
-    LEFT join users_info ic on uc.id = ic.user_id
-		where u.email = '${req.body.email}' and l.es_notificado = true
+		where l.usuario_id = '${req.body.email}' and l.es_notificado = true
 	`
 
 	try {
@@ -47,13 +41,9 @@ notificationController.raisingOwnershipNotification = async (req, res) => {
       return res.status(400).send({ message: "Correo electrónico faltante" });
   
     let query = `
-          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
+          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder
           from levantamientos l 
-          inner join users u on l.usuario_id = u.email
-          inner join users_info i on u.id = i.user_id
-          left join users uc on l.id_curador = uc.email
-          LEFT join users_info ic on uc.id = ic.user_id
-          where u.email = '${req.body.email}' and l.es_notificado = true
+          where l.usuario_id = '${req.body.email}' and l.es_notificado = true
       `;
   
     try {
@@ -82,15 +72,10 @@ notificationController.projectsOwnershipNotification = async (req, res) => {
     let query = `
           SELECT 
               l.*, 
-              l.nombre as title, 
-              u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador, 
+              l.nombre as title,  
               l.region as ruta, CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder 
           from proyectos l 
-          inner join users u on l.id_propietario = u.email
-          inner join users_info i on u.id = i.user_id
-          left join users uc on l.id_curador = uc.email
-          left join users_info ic on uc.id = ic.user_id
-          where u.email = '${req.body.email}' and l.es_notificado = true
+          where l.id_propietario = '${req.body.email}' and l.es_notificado = true
       `;
   
     try {
@@ -118,13 +103,9 @@ notificationController.raisingReviewerNotifications = async (req, res) => {
       return res.status(400).send({ message: "Correo electrónico faltante" });
   
     let query = `
-          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder, u.email, i.nombre, i.apellido, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador
+          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder
           from levantamientos l 
-          inner join users u on l.usuario_id = u.email
-		  inner join users_info i on u.id = i.user_id
-		  left join users uc on l.id_curador = uc.email
-		  left join users_info ic on uc.id = ic.user_id
-          where uc.email = '${req.body.email}' and l.curador_notificado = true
+          where l.id_curador = '${req.body.email}' and l.curador_notificado = true
       `;
 
     try {
@@ -154,14 +135,9 @@ notificationController.projectsReviewerNotifications = async (req, res) => {
           SELECT 
               l.*, 
               l.nombre as title, 
-              u.email, i.nombre as nombre_propietario, i.apellido as apellido_propietario, uc.email as email_curador, ic.nombre as nombre_curador, ic.apellido as apellido_curador, 
               l.region as ruta, CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder 
-          from proyectos l 
-          left join users u on l.id_propietario = u.id
-          left join users_info i on l.id_propietario = i.user_id
-          left join users uc on l.id_curador = uc.id
-          left join users_info ic on l.id_curador = ic.user_id
-          where uc.email = '${req.body.email}' and l.curador_notificado = true
+          from proyectos l
+          where l.id_curador = '${req.body.email}' and l.curador_notificado = true
       `;
   
     try {
