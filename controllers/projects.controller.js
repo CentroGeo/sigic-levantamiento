@@ -30,9 +30,12 @@ projectsController.publicProjects = async (req, res) => {
       SELECT l.*,
         l.region as ruta,
         CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder,
-        l.es_institucion
+        l.es_institucion,
+        count(l2.id) as num_aportaciones
       FROM public.proyectos as l
+      LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE l.es_privada = false
+      GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $1
       OFFSET $2
@@ -91,10 +94,13 @@ projectsController.ownprojects = async (req, res) => {
       SELECT l.*,
             l.region AS ruta,
             CONCAT('apidev/', REPLACE(l.imagen,'./','')) AS path_media_folder,
-            l.es_institucion
+            l.es_institucion,
+            count(l2.id) as num_aportaciones
       FROM public.proyectos AS l
+      LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE 
         l.id_propietario = '${userEmail}'
+      GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $1
       OFFSET $2
@@ -151,9 +157,11 @@ projectsController.sharedProjects = async (req, res) => {
             l.region AS ruta,
             pu.rol as rol,
             CONCAT('apidev/', REPLACE(l.imagen,'./','')) AS path_media_folder,
-            l.es_institucion
+            l.es_institucion,
+            count(l2.id) as num_aportaciones
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
+      LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE 
         pu.correo = '${userEmail}'
         and (
@@ -165,6 +173,7 @@ projectsController.sharedProjects = async (req, res) => {
               ELSE FALSE
           end
         )
+      GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $1
       OFFSET $2
@@ -227,10 +236,12 @@ projectsController.createProject = async (req, res) => {
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
   
   try {
+    //cambiar descripcion por categoria
+    //cambiar especificaciones_multimedia por instrucciones
     const { rows } = await databasePool.query({
       text: `INSERT INTO public.proyectos(
                   nombre, 
-                  descripcion,
+                  descripcion, 
                   institucion, 
                   imagen, 
                   activo, 
@@ -265,7 +276,7 @@ projectsController.createProject = async (req, res) => {
                 returning *`,
       values: [
         req.body.nombre,
-        req.body.descripcion,
+        req.body.categoria,
         req.body.institucion,
         url_first_image,
         false,
@@ -275,7 +286,7 @@ projectsController.createProject = async (req, res) => {
         "SIN EVALUAR",
         req.body.lider,
         req.body.objetivo,
-        req.body.especificaciones_multimedia,
+        req.body.instrucciones,
         req.body.producto,
         esInstitucion,
         !!req.body.isPrivate,
@@ -300,6 +311,8 @@ projectsController.updateProject = async (req, res) => {
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
   try {
+    //cambiar descripcion por categoria
+    //cambiar especificaciones_multimedia por instrucciones
     const { rows } = await databasePool.query({
       text: `UPDATE public.proyectos
               SET 
@@ -317,12 +330,12 @@ projectsController.updateProject = async (req, res) => {
               returning *`,
       values: [
         req.body.nombre,
-        req.body.descripcion,
+        req.body.categoria,
         req.body.institucion,
         req.body.ficha_proyecto,
         req.body.lider,
         req.body.objetivo,
-        req.body.especificaciones_multimedia,
+        req.body.instrucciones,
         req.body.producto,
         esInstitucion,
         !!req.body.isPrivate,
