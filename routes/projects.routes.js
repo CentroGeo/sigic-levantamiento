@@ -12,6 +12,8 @@ const filer = new Filer("proyectos", "imagen");
 router.get('/public', projectsController.publicProjects);
 router.post('/own', projectsController.ownprojects);
 router.post('/shared', projectsController.sharedProjects);
+router.post('/register/:id', projectsController.getRegisterProject);
+
 router.post('/create', filer.sigleUpload("image"), projectsController.createProject);
 router.put('/update/:id', filer.sigleUpload("image"), projectsController.updateProject);
 router.put('/deactivate/:id', projectsController.deactivateProject);

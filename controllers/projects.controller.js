@@ -164,16 +164,8 @@ projectsController.sharedProjects = async (req, res) => {
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE 
         pu.correo = '${userEmail}'
-        and (
-          CASE 
-              WHEN pu.rol = 'administrar' THEN TRUE 
-              WHEN pu.rol = 'revisar' THEN TRUE
-              WHEN pu.rol = 'aporta' THEN true
-              WHEN pu.rol = 'ver' THEN true
-              ELSE FALSE
-          end
-        )
-      GROUP BY l.id
+        AND pu.rol IN ('administrar', 'revisar', 'aporta', 'ver')
+      GROUP BY l.id, pu.rol
       ORDER BY l.id DESC
       LIMIT  $1
       OFFSET $2
@@ -185,15 +177,7 @@ projectsController.sharedProjects = async (req, res) => {
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       WHERE 
         pu.correo = '${userEmail}'
-        and (
-          CASE 
-              WHEN pu.rol = 'administrar' THEN TRUE 
-              WHEN pu.rol = 'revisar' THEN TRUE
-              WHEN pu.rol = 'aporta' THEN true
-              WHEN pu.rol = 'ver' THEN true
-              ELSE FALSE
-          end
-        )
+        AND pu.rol IN ('administrar', 'revisar', 'aporta', 'ver')
     `;
 
     const [{ rows: proyectos }, { rows: countRows }] = await Promise.all([
@@ -213,6 +197,39 @@ projectsController.sharedProjects = async (req, res) => {
       },
       proyectos: proyectos
     });
+  } catch (error) {
+    return res.status(400).send({ message: error.message });
+  }
+}
+
+
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @returns 
+ */
+projectsController.getRegisterProject = async (req, res) => {
+  try {
+    const userEmail = req.body.email;
+    const id = req.params.id;
+    
+    const query = `
+      SELECT l.*,
+        l.region as ruta,
+        CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder,
+        l.es_institucion
+      FROM public.proyectos as l
+      WHERE l.id_propietario = '${userEmail}' and l.id=${id}
+      ORDER BY l.id DESC
+    `;
+
+    const { rows } = await databasePool.query({ text: query});
+    
+    return res.status(200).send({
+      proyectos: rows
+    });
+
   } catch (error) {
     return res.status(400).send({ message: error.message });
   }
@@ -447,19 +464,22 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
           proyecto_id, 
           correo, 
           rol, 
-          created_at
+          created_at,
+          es_notificado
         ) VALUES (
           $1, 
           $2, 
           $3, 
-          $4
+          $4,
+          $5
         )
       `,
       values: [
         project,
         req.body.email,
         req.body.rol,
-        new Date()
+        new Date(),
+        true
       ]
     });
 

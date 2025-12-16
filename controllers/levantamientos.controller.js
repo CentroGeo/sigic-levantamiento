@@ -391,7 +391,7 @@ levantamientosController.list = async (req, res) => {
   let query = `
 		SELECT l.*, l.nombre as title, media_array as path_media_folder
 		from levantamientos l
-		where l.usuario_id = '${req.body.email}'
+		where l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
 	`;
 
   try {
