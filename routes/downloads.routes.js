@@ -6,7 +6,8 @@ const downloadsController = require('../controllers/downloads.controller');
 
 router.post('/user/list', downloadsController.listUserDownload);
 router.delete('/user/:id', downloadsController.removeUserDownload);
-router.post('/user/download', downloadsController.listUserDownload);
+
+router.post('/user/download', downloadsController.userDownloadRegisters);
 
 router.post('/reviewer/list', downloadsController.listReviewer);
 router.post('/reviewer/status/:id', downloadsController.updateStatusReviewer);

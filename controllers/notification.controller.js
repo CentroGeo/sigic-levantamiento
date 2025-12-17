@@ -146,10 +146,10 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
 	if (!req.body.email) return res.status(400).send({ message: "Correo electrónico faltante" });
 
 	let query = `
-		SELECT 
-			l.*, l.nombre_descarga as title, i.nombre as nombre_propietario
+    SELECT distinct l.status, count(*) as total
 		FROM public.descargas as l
 		where l.usuario_id = '${req.body.email}' and l.es_notificado = true
+    group by l.status
 	`
 
 	try {
@@ -160,6 +160,39 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
 		return res.status(200).send({
 			total: rows.length,
 			list: rows
+		});
+	} catch (error) {
+		console.log(error)
+		return res.status(400).send({
+			status: 'Error',
+			error: error,
+			message: error.message
+
+		});
+	}
+
+}
+
+notificationController.downloadOwnershipNotificationDown = async (req, res) => {
+	if (!req.body.email) return res.status(400).send({ message: "Correo electrónico faltante" });
+
+	let query = `
+		UPDATE descargas l
+    SET es_notificado = FALSE
+    WHERE l.usuario_id = '${req.body.email}'
+      AND l.status = '${req.body.status}'
+      AND l.es_notificado = TRUE
+    returning *
+	`
+
+	try {
+		const { rows } = await databasePool.query({
+			text: query
+		});
+
+		return res.status(200).send({
+			total: rows.length,
+			descargas: rows
 		});
 	} catch (error) {
 		console.log(error)

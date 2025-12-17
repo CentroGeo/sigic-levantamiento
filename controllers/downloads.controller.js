@@ -9,17 +9,43 @@ const downloadsController = {};
 
 downloadsController.listUserDownload = async (req, res) => {
 	try {
+		const page = parseInt(req.query.page, 12) || 1;
+		const limit = 12;
+		const offset = (page - 1) * limit;
+
 		const { rows } = await databasePool.query({
 			text: `
 				SELECT 
 					l.*
                 FROM public.descargas as l
-				WHERE l.usuario_id = '${req.body.email}'
+				WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
+				LIMIT  $1
+      			OFFSET $2
 			`,
 		});
 
+		const countQuery = `
+			SELECT COUNT(*) AS total
+			FROM public.descargas as l
+			WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
+		`;
+
+		const [{ rows: downloads }, { rows: countRows }] = await Promise.all([
+			databasePool.query({ text: query, values: [limit, offset] }),
+			databasePool.query(countQuery)
+		]);
+
+		const total = parseInt(countRows[0].total, 12);
+		const totalPages = Math.ceil(total / limit);
+
 		return res.status(200).send({
-			list: rows
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages
+			},
+			descargas: downloads
 		});
 	} catch (error) {
 		return res.status(400).send({ message: error.message });
@@ -44,8 +70,7 @@ downloadsController.removeUserDownload = async (req, res) => {
 	}
 }
 
-
-downloadsController.listUserDownload = async (req, res) => {
+downloadsController.userDownloadRegisters = async (req, res) => {
 	console.log("exportLevantamientos")
 	try {
 		console.log(req.body)
