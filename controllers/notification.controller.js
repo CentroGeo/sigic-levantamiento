@@ -77,6 +77,67 @@ notificationController.projectsOwnershipNotificationDown = async (req, res) => {
   }
 };
 
+notificationController.raisingOwnershipNotification = async (req, res) => {
+  if (!req.body.email)
+    return res.status(400).send({ message: "Correo electrónico faltante" });
+
+  let query = `
+        SELECT distinct l.status, count(*) as total
+        from levantamientos l 
+        where l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}' and l.es_notificado = true
+        group by l.status
+    `;
+
+  try {
+    const { rows } = await databasePool.query({
+      text: query
+    });
+
+    return res.status(200).send({
+      total: rows.length,
+      levantamientos: rows
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).send({
+      status: "Error",
+      error: error,
+      message: error.message
+    });
+  }
+};
+
+notificationController.raisingOwnershipNotificationDown = async (req, res) => {
+  if (!req.body.email)
+    return res.status(400).send({ message: "Correo electrónico faltante" });
+
+  let query = `
+      UPDATE levantamientos l
+      SET es_notificado = FALSE
+      WHERE l.usuario_id = '${req.body.email}'
+        AND l.status = '${req.body.status}'
+        AND l.es_notificado = TRUE
+      returning *
+    `;
+
+  try {
+    const { rows } = await databasePool.query({
+      text: query
+    });
+
+    return res.status(200).send({
+      total: rows.length,
+      levantamientos: rows
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).send({
+      status: "Error",
+      error: error,
+      message: error.message
+    });
+  }
+};
 
 
 
@@ -112,34 +173,6 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
 
 }
 
-notificationController.raisingOwnershipNotification = async (req, res) => {
-    if (!req.body.email)
-      return res.status(400).send({ message: "Correo electrónico faltante" });
-  
-    let query = `
-          SELECT l.*, l.nombre as title, CONCAT('apidev/', REPLACE(l.media_folder,'./','')) as path_media_folder
-          from levantamientos l 
-          where l.usuario_id = '${req.body.email}' and l.es_notificado = true
-      `;
-  
-    try {
-      const { rows } = await databasePool.query({
-        text: query
-      });
-  
-      return res.status(200).send({
-        total: rows.length,
-        levantamientos: rows
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(400).send({
-        status: "Error",
-        error: error,
-        message: error.message
-      });
-    }
-};
 
 notificationController.raisingReviewerNotifications = async (req, res) => {
 

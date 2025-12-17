@@ -384,25 +384,48 @@ levantamientosController.getRegisterV2 = async (req, res) => {
   }
 };
 
-levantamientosController.list = async (req, res) => {
-  if (!req.body.email)
-    return res.status(400).send({ message: "Correo electrónico faltante" });
-
-  let query = `
-		SELECT l.*, l.nombre as title, media_array as path_media_folder
-		from levantamientos l
-		where l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
-	`;
-
+levantamientosController.list = async (req, res) => {  
   try {
-    const { rows } = await databasePool.query({
-      text: query
-    });
+    const page = parseInt(req.query.page, 12) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    
+    if (!req.body.email)
+      return res.status(400).send({ message: "Correo electrónico faltante" });
+  
+    let query = `
+      SELECT 
+        l.*, l.nombre as title, media_array as path_media_folder
+      FROM levantamientos l
+      WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
+      LIMIT  $1
+      OFFSET $2
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM levantamientos l
+      WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
+    `;
+    
+    const [{ rows: levantamientos }, { rows: countRows }] = await Promise.all([
+      databasePool.query({ text: query, values: [limit, offset] }),
+      databasePool.query(countQuery)
+    ]);
+
+    const total = parseInt(countRows[0].total, 12);
+    const totalPages = Math.ceil(total / limit)
 
     return res.status(200).send({
-      total: rows.length,
-      levantamientos: rows
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      },
+      levantamientos: levantamientos
     });
+
   } catch (error) {
     console.log(error);
     return res.status(400).send({
