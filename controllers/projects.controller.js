@@ -430,7 +430,7 @@ projectsController.sharedProjectsUserList = async (req, res) => {
   const project = req.params.project;
 
   try {
-    await databasePool.query({
+    const { rows } = await databasePool.query({
       text: `
         SELECT *
         FROM public.proyectos_usuarios
@@ -457,7 +457,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
   const project = req.params.project;
 
   try {
-    await databasePool.query({
+    const { rows } = await databasePool.query({
       text: `
         INSERT INTO 
         public.proyectos_usuarios (
@@ -484,7 +484,8 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
     });
 
     return res.status(200).send({
-      usuarios: rows
+      status: "Usuario guardado",
+      usuarios: rows[0]
     });
 
   } catch (error) {
