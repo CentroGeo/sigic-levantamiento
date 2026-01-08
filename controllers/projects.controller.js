@@ -464,7 +464,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
           proyecto_id, 
           correo, 
           rol, 
-          created_at,
+          created_date,
           es_notificado
         ) VALUES (
           $1, 
