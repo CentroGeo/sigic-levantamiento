@@ -20,33 +20,6 @@ const levantamientosController = {};
 
 /*********** Sección API levantamientos  **********/
 
-/* 	Petición POST a: http://localhost:8086/apidev/levantamientos/newLevantamiento    (con proxy)
-          http://localhost:3006/levantamientos/newLevantamiento            (directo)
-
-  crea un nuevo levantamiento
-
-  recibe un json tipo:
-  {
-fecha: '2022-04-28',
-estado: '',
-municipio: '',
-localidad: '',
-    "id_cat_principal": 2,
-    "id_cat_secundaria": 1,
-    "id_usuario": "",  //uuid de usuario
-    "titulo": "Nuevo levantamiento",
-    "fecha_levantamiento": date,	//'28/4/2022 14:50:31'	
-    "geometry": {} //json
-    "fuente": "app"   //app o web
-    "latitud": ""  //double
-    "longitud": ""  //double,
-    "id_proyecto": 1,
-    respuestas: {
-      objeto de respuestas
-    },
-    datos_usuario = {},
-    ubicacion_sensible: false //true or false 	
-  } */
 levantamientosController.create = async (req, res) => {
 
   console.log("***********************");
@@ -308,23 +281,69 @@ levantamientosController.create = async (req, res) => {
   }
 };
 
+
+/**
+ * @swagger
+ * /levantamientos/register:
+ *   get:
+ *     tags: [Levantamientos]
+ *     summary: Obtener la ficha de un proyecto
+ *     description: Obtener la ficha de un proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id_project:
+ *                 type: integer  
+ *                 description: Identificador del proyecto
+ *               id_user:
+ *                 type: integer  
+ *                 description: Identificador del usuario
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 answers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       key:
+ *                         type: string
+ *                         description: Clave de la respuesta
+ *                       value:
+ *                         type: string
+ *                         description: Valor de la respuesta
+ *                 levantamientos:
+ *                   type: boolean
+ *                   description: Indica si el proyecto tiene un levantamiento aprobado
+ */
 levantamientosController.getRegister = async (req, res) => {
   try {
+    // Obtiene la ficha del proyecto
     const { rows } = await databasePool.query({
       text: `SELECT ficha_proyecto::json
-				   FROM proyectos
-				   WHERE id = $1 and ficha_proyecto is not null
-					`,
+                   FROM proyectos
+                   WHERE id = $1 and ficha_proyecto is not null
+                `,
       values: [req.body.id_project]
     });
 
+    // Verifica si existe un levantamiento aprobado para el proyecto
     const exist = await databasePool.query({
       text: `
-				SELECT EXISTS(
-					SELECT 1 FROM levantamientos
-					WHERE id_proyecto = $1 and status = 'APROBADO'
-				) as levantamientos
-				`,
+            SELECT EXISTS(
+              SELECT 1 FROM levantamientos
+              WHERE id_proyecto = $1 and status = 'APROBADO'
+            ) as levantamientos
+            `,
       values: [req.body.id_project]
     });
 
@@ -333,16 +352,19 @@ levantamientosController.getRegister = async (req, res) => {
     console.log(rows);
     console.log(rows.length);
     if (rows.length > 0) {
+      // Convierte la ficha del proyecto en un array de objetos
       Object.entries(rows[0]["ficha_proyecto"]).forEach(([key, value]) => {
         respuestas.push(value);
       });
     } else {
+      // Si no existe la ficha, devuelve un array vacio
     }
 
     return res.status(200).send({
       //answers: rows[0]["respuestas_ficha"]
       answers: respuestas,
-      levantamientos: exist.rows[0].levantamientos
+      //levantamientos: exist.rows[0].levantamientos
+      levantamientos: exist.rows[0].levantamientos ? true : false
     });
   } catch (error) {
     console.log(error);
@@ -451,24 +473,68 @@ levantamientosController.listChat = async (req, res) => {
 };
 
 
+/**
+ * Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
+ * @swagger
+ * /levantamientos/{id}/chat/reviewer:
+ *   put:
+ *     tags: [Levantamientos]
+ *     summary: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
+ *     description: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del levantamiento
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               report:
+ *                 type: string
+ *                 description: Reporte del curador
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del curador
+ *     responses:
+ *       200:
+ *         description: Levantamiento actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado del levantamiento
+ */
+/* Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador */
 levantamientosController.chatReviewer = async (req, res) => {
+  // Verifica si se proporcion  el reporte del curador
   if (!req.body.report)
     return res.status(400).send({ message: "Reporte faltante" });
+
+  // Verifica si se proporcion  el ID del curador
   if (!req.body.user_id)
     return res.status(400).send({ message: "ID faltante" });
 
   try {
+    // Inserta el mensaje del curador en la tabla de mensajes
     const insert_message = await databasePool.query({
       text: `
-				insert into 
+        /* Inserta el mensaje del curador en la tabla de mensajes */
+        insert into 
           public.levantamientos_mensajes(
             levantamiento_id, 
             fecha_hora, 
             texto, 
             usuario_id
           )
-				values($1, $2, $3, $4)
-			`,
+        values($1, $2, $3, $4)
+      `,
       values: [
         req.params.id, 
         new Date(), 
@@ -477,12 +543,14 @@ levantamientosController.chatReviewer = async (req, res) => {
       ]
     });
 
+    // Actualiza el estado del levantamiento a EN REVISIÓN y notifica al curador
     const updateSql = {
       text: `
-				UPDATE public.levantamientos
-				SET status='EN REVISIÓN', id_curador=$1, fecha_aceptacion=$2, en_pausa=true, es_notificado=true
-				WHERE id=$3 returning *
-			`,
+        /* Actualiza el estado del levantamiento a EN REVISIÓN y notifica al curador */
+        UPDATE public.levantamientos
+        SET status='EN REVISIÓN', id_curador=$1, fecha_aceptacion=$2, en_pausa=true, es_notificado=true
+        WHERE id=$3 returning *
+      `,
       values: [
         req.body.user_id, 
         new Date(), 
@@ -500,30 +568,72 @@ levantamientosController.chatReviewer = async (req, res) => {
     console.log(error);
     return res.status(400).send({ message: error.message });
   }
-};
+}
 
-
+/**
+ * Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
+ * @swagger
+ * /levantamientos/{id}/chat/creator:
+ *   put:
+ *     tags: [Levantamientos]
+ *     summary: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
+ *     description: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del levantamiento
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:  
+ *           schema:
+ *             type: object
+ *             properties:
+ *               report:
+ *                 type: string
+ *                 description: Reporte del curador
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del curador
+ *     responses:
+ *       200:
+ *         description: Levantamiento actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado del levantamiento
+ */
 levantamientosController.chatCreator = async (req, res) => {
-  if (!req.body.report)
+  if (!req.body.report) {
     return res.status(400).send({ message: "Reporte faltante" });
-  if (!req.body.user_id)
+  }
+
+  if (!req.body.user_id) {
     return res.status(400).send({ message: "ID faltante" });
+  }
 
   try {
+    // Inserta un mensaje en la tabla levantamientos_mensajes
     const insert_message = await databasePool.query({
       text: `
-				insert into 
+				INSERT INTO 
           public.levantamientos_mensajes(
             levantamiento_id, 
             fecha_hora, 
             texto, 
             usuario_id
           )
-				values($1, $2, $3, $4)
+				VALUES($1, $2, $3, $4)
 			`,
       values: [req.params.id, new Date(), req.body.report, req.body.user_id]
     });
 
+    // Actualiza el estado del levantamiento a EN PAUSA y notifica al curador
     const updateSql = {
       text: `
 				UPDATE public.levantamientos
@@ -543,8 +653,7 @@ levantamientosController.chatCreator = async (req, res) => {
     console.log(error);
     return res.status(400).send({ message: error.message });
   }
-};
-
+}
 
 
 module.exports = levantamientosController;

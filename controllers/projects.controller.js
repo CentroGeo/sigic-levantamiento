@@ -14,11 +14,56 @@ const projectsController = {};
 /*********** Sección API de Proyectos *****************/
 
 /**
- * @function projectsPublic
- * @description Get all public projects
- * @param {*} req Request object
- * @param {*} res Response object
- * @returns {Promise<void>}
+ * @swagger
+ * /projects/public:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: "Obtener proyectos p&uacute;blicos"
+ *     description: "Obtener la lista de proyectos p&uacute;blicos"
+ *     responses:
+ *       200:
+ *         description: "Lista de proyectos p&uacute;blicos"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: number
+ *                     limit:
+ *                       type: number
+ *                     total:
+ *                       type: number
+ *                     totalPages:
+ *                       type: number
+ *                 proyectos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: number
+ *                       titulo:
+ *                         type: string
+ *                       descripcion:
+ *                         type: string
+ *                       imagen:
+ *                         type: string
+ *                       ruta:
+ *                         type: string
+ *                       num_aportaciones:
+ *                         type: number
+ *                       es_institucion:
+ *                         type: boolean
+ *                       es_privada:
+ *                         type: boolean
+ *                       fecha_creacion:
+ *                         type: string
+ *                       fecha_actualizacion:
+ *                         type: string
  */
 projectsController.publicProjects = async (req, res) => {
   try {
@@ -68,15 +113,78 @@ projectsController.publicProjects = async (req, res) => {
   } catch (error) {
     return res.status(400).send({ message: error.message });
   }
-}
-
+  
+};
 
 /**
- * @function projectsUser
- * @description Get all projects of a user
- * @param {*} req Request object
- * @param {*} res Response object
- * @returns {Promise<void>}
+ * @swagger
+ * /projects/own:
+ *   post:
+ *     tags: [Proyectos]
+ *     summary: "Obtener proyectos propios de un usuario"
+ *     description: "Obtener la lista de proyectos propios de un usuario"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: "Correo electr&oacute;nico del usuario"
+ *                 example: "usuario@example.com"
+ * 
+ *     responses:
+ *       "200":
+ *         description: "OK"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: "P&aacute actual"
+ *                     limit:
+ *                       type: integer
+ *                       description: "L&iacute m&aacute de proyectos por p&aacute"
+ *                     total:
+ *                       type: integer
+ *                       description: "Total de proyectos"
+ *                     totalPages:
+ *                       type: integer
+ *                       description: "Total de p&aacuteinas"
+ *                 proyectos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: "ID del proyecto"
+ *                       nombre:
+ *                         type: string
+ *                         description: "Nombre del proyecto"
+ *                       region:
+ *                         type: string
+ *                         description: "Ruta del proyecto"
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: "Ruta de la carpeta de medios del proyecto"
+ *                       es_institucion:
+ *                         type: boolean
+ *                         description: "Indica si el proyecto es de una instituci&oacute;n"
+ *                       num_aportaciones:
+ *                         type: integer
+ *                         description: "Total de aportaciones del proyecto"
+ *       "400":
+ *         description: "Bad Request"
+ *       "500":
+ *         description: "Internal Server Error"
  */
 projectsController.ownprojects = async (req, res) => {
   try {
@@ -135,11 +243,80 @@ projectsController.ownprojects = async (req, res) => {
 }
 
 /**
- * @description Get all shared projects of a user
- * @param {*} req Request object
- * @param {*} res Response object
- * @returns {Promise<void>}
+ * @swagger
+ * /projects/shared:
+ *   post:
+ *     tags: [Proyectos]
+ *     summary: "Obtener proyectos compartidos con un usuario"
+ *     description: "Obtener la lista de proyectos compartidos con un usuario"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: "Correo electr&oacute;nico del usuario"
+ *                 example: "usuario@example.com"
+ *               page:
+ *                 type: integer
+ *                 description: "P&aacute actual" 
+ *                 example: 1
+ *                 required: false
+ *     responses:
+ *       "200":
+ *         description: "OK"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: "P&aacute actual"
+ *                     limit:
+ *                       type: integer
+ *                       description: "L&iacute m&aacute de proyectos por p&aacute"
+ *                     total:
+ *                       type: integer
+ *                       description: "Total de proyectos"
+ *                     totalPages:
+ *                       type: integer
+ *                       description: "Total de p&aacuteinas"
+ *                 proyectos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: "ID del proyecto"
+ *                       nombre:
+ *                         type: string
+ *                         description: "Nombre del proyecto"
+ *                       region:
+ *                         type: string
+ *                         description: "Ruta del proyecto"
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: "Ruta de la carpeta de medios del proyecto"
+ *                       es_institucion:
+ *                         type: boolean
+ *                         description: "Indica si el proyecto es de una instituci&oacute;n"
+ *                       num_aportaciones:
+ *                         type: integer
+ *                         description: "Total de aportaciones del proyecto"
+ *       "400":
+ *         description: "Bad Request"
+ *       "500":
+ *         description: "Internal Server Error"
  */
+
 projectsController.sharedProjects = async (req, res) => {
   try {
     const userEmail = req.body.email;
@@ -202,12 +379,63 @@ projectsController.sharedProjects = async (req, res) => {
   }
 }
 
-
 /**
- * 
- * @param {*} req 
- * @param {*} res 
- * @returns 
+ * @swagger
+ * /projects/register/:id:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: Obtiene un proyecto por su id y usuario
+ *     description: Obtiene un proyecto por su id y usuario
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Correo electr&oacute;nico del usuario
+ *               id:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 proyectos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID del proyecto
+ *                       nombre:
+ *                         type: string
+ *                         description: Nombre del proyecto
+ *                       region:
+ *                         type: string
+ *                         description: Ruta del proyecto
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: Ruta de la carpeta de medios del proyecto
+ *                       es_institucion:
+ *                         type: boolean
+ *                         description: Indica si el proyecto es de una instituci&oacute;n
+ *       400:
+ *         description: Bad Request
  */
 projectsController.getRegisterProject = async (req, res) => {
   try {
@@ -235,14 +463,77 @@ projectsController.getRegisterProject = async (req, res) => {
   }
 }
 
-
 /**
- * Crea un nuevo proyecto y lo guarda en la base de datos.
- * 
- * @param {object} req - La petici&oacute;n HTTP que contiene la informaci&oacute;n del proyecto.
- * @param {object} res - La respuesta HTTP que se enviar&aacute;.
- * 
- * @returns {object} Un objeto con la informaci&oacute;n del proyecto guardado.
+ * Crea un nuevo proyecto
+ * @swagger
+ * /projects/create:
+ *   post:
+ *     tags: [Proyectos]
+ *     summary: Crear un nuevo proyecto
+ *     description: Crear un nuevo proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 description: Nombre del proyecto
+ *               categoria:
+ *                 type: string
+ *                 description: Categor&iacute del proyecto
+ *               institucion:
+ *                 type: string
+ *                 description: Instituci&oacute;n del proyecto
+ *               imagen:
+ *                 type: string
+ *                 description: URL de la imagen principal del proyecto
+ *               id_propietario:
+ *                 type: string
+ *                 description: ID del propietario del proyecto
+ *               fecha_creacion:
+ *                 type: string
+ *                 description: Fecha de creaci&oacute;n del proyecto
+ *               ficha_proyecto:
+ *                 type: string
+ *                 description: Ficha del proyecto
+ *               status:
+ *                 type: string
+ *                 description: Estado del proyecto
+ *               lider:
+ *                 type: string
+ *                 description: Lider del proyecto
+ *               objetivo:
+ *                 type: string
+ *                 description: Objetivo del proyecto
+ *               instrucciones:
+ *                 type: string
+ *                 description: Instrucciones del proyecto
+ *               producto:
+ *                 type: string
+ *                 description: Producto del proyecto
+ *               es_institucion:
+ *                 type: boolean
+ *                 description: Indica si el proyecto es de una instituci&oacute;n
+ *               es_privada:
+ *                 type: boolean
+ *                 description: Indica si el proyecto es privado
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci&oacute;n
+ *                 proyecto:
+ *                   type: object
+ *                   description: Proyecto creado
  */
 projectsController.createProject = async (req, res) => {
   
@@ -320,14 +611,98 @@ projectsController.createProject = async (req, res) => {
   }
 };
 
+/**
+ * Actualizar un proyecto en la base de datos
+ * @swagger
+ * /projects/update/:id:
+ *   put:
+ *     tags: [Proyectos]
+ *     summary: Actualizar un proyecto
+ *     description: Actualizar un proyecto en la base de datos
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               nombre:
+ *                 type: string
+ *                 description: Nombre del proyecto
+ *               categoria:
+ *                 type: string
+ *                 description: Categor&iacute del proyecto
+ *               institucion:
+ *                 type: string
+ *                 description: Instituci&oacute;n del proyecto
+ *               imagen:
+ *                 type: string (optional)
+ *                 description: Imagen del proyecto
+ *               activo:
+ *                 type: boolean
+ *                 description: Activo del proyecto
+ *               id_propietario:
+ *                 type: string
+ *                 description: ID del propietario del proyecto
+ *               ficha_proyecto:
+ *                 type: string
+ *                 description: Ficha del proyecto
+ *               status:
+ *                 type: string
+ *                 description: Estado del proyecto
+ *               lider:
+ *                 type: string
+ *                 description: L&iacuteder del proyecto
+ *               objetivo:
+ *                 type: string
+ *                 description: Objetivo del proyecto
+ *               instrucciones:
+ *                 type: string
+ *                 description: Instrucciones del proyecto
+ *               producto:
+ *                 type: string
+ *                 description: Producto del proyecto
+ *               esInstitucion: 
+ *                 type: boolean
+ *                 description: Indica si el proyecto es de una instituci&oacute;n
+ *               isPrivate:
+ *                 type: boolean  
+ *                 description: Indica si el proyecto es privado
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci&oacute;n
+ *                 proyecto:
+ *                   type: object
+ *                   description: Proyecto actualizado
+ */
 projectsController.updateProject = async (req, res) => {
   console.log("update project");
+
+  // Validar que se haya proporcionado el nombre del proyecto
   if (!req.body.nombre)
     return res.status(400).send({ message: "Falta el nombre del proyecto" });
 
-  let esInstitucion = req.body.esInstitucion == "1" ? true : false;
+  // Determinar si el proyecto es de una instituci&oacute;n o no
+  const esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
   try {
+    // Actualizar el proyecto en la base de datos
     //cambiar descripcion por categoria
     //cambiar especificaciones_multimedia por instrucciones
     const { rows } = await databasePool.query({
@@ -360,6 +735,7 @@ projectsController.updateProject = async (req, res) => {
       ]
     });
 
+    // Si se proporcion&oacute; una imagen, eliminar la imagen anterior y actualizar la ruta de la imagen en la base de datos
     const url_first_image = req.file ? req.file.path : null;
     if (url_first_image) {
       if (rows[0].imagen) fs.unlinkSync(rows[0].imagen);
@@ -372,6 +748,7 @@ projectsController.updateProject = async (req, res) => {
       });
     }
 
+    // Devolver la informaci&oacute;n del proyecto actualizado
     return res.status(200).send({
       status: "Proyecto Actualizado",
       proyecto: rows[0]
@@ -382,7 +759,49 @@ projectsController.updateProject = async (req, res) => {
   }
 };
 
-
+/**
+ * Desactiva un proyecto
+ * @swagger
+ * /projects/{id}/deactivate:
+ *   put:
+ *     tags: [Proyectos]
+ *     summary: Desactiva un proyecto
+ *     description: Desactiva un proyecto
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               activo:
+ *                 type: boolean
+ *                 description: Activo del proyecto
+ *               id_desactivado_por:
+ *                 type: integer
+ *                 description: ID del usuario que desactiv&oacute; el proyecto
+ *     responses:
+ *       200:
+ *         description: Proyecto actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci n
+ *     400:
+ *       description: Bad Request
+ */
 projectsController.deactivateProject = async (req, res) => {
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
@@ -392,9 +811,9 @@ projectsController.deactivateProject = async (req, res) => {
       .status(400)
       .send({ message: "Falta el status para activar o desactivar" });
 
-  // id_desactivado_por: es el id de quien hizo el último cambio de estado (activado o desactivado) del proyecto
-  // fecha_desactivacion: es la fecha del último cambio de estado (activado o desactivado) del proyecto
-
+  // id_desactivado_por: es el id de quien hizo el  ltimo cambio de estado (activado o desactivado) del proyecto
+  // fecha_desactivacion: es la fecha del  ltimo cambio de estado (activado o desactivado) del proyecto
+ 
   try {
     await databasePool.query({
       text: `
@@ -421,8 +840,55 @@ projectsController.deactivateProject = async (req, res) => {
   }
 };
 
-
-
+/**
+ * @swagger
+ * /projects/{project}/shared/user/list:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: "Obtener lista de usuarios que tienen acceso a un proyecto"
+ *     description: "Obtener la lista de usuarios que tienen acceso a un proyecto"
+ *     parameters:
+ *       - in: path
+ *         name: project
+ *         required: true
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               project:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 usuarios:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID del usuario
+ *                       correo:
+ *                         type: string
+ *                         description: Correo electr&oacute;nico del usuario
+ *                       rol:
+ *                         type: string
+ *                         description: Rol del usuario en el proyecto (administrar, revisar, aporta, ver)
+ *  
+ */
 projectsController.sharedProjectsUserList = async (req, res) => {
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
@@ -450,13 +916,61 @@ projectsController.sharedProjectsUserList = async (req, res) => {
   }
 };
 
+/**
+ * Agrega un usuario a un proyecto compartido
+ * 
+ * @swagger
+ * /projects/{project}/shared/user/add:
+ *   post:
+ *     tags: [Proyectos]
+ *     summary: Agrega un usuario a un proyecto compartido
+ *     description: Agrega un usuario a un proyecto compartido
+ *     parameters:
+ *       - in: path
+ *         name: project
+ *         required: true
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:   
+ *           schema:
+ *             type: object
+ *             properties:
+ *               project:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del usuario
+ *               email:
+ *                 type: string
+ *                 description: Correo electr&oacute;nico del usuario
+ *               rol:
+ *                 type: string
+ *                 description: Rol del usuario en el proyecto (administrar, revisar, aporta, ver)
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci n
+ */
 projectsController.sharedProjectsUserAdd = async (req, res) => {
+  // Verifica si el usuario proporcion&oacute; el email del usuario
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
 
+  // Obtiene el id del proyecto
   const project = req.params.project;
 
   try {
+    // Inserta el usuario en la tabla proyectos_usuarios
     const { rows } = await databasePool.query({
       text: `
         INSERT INTO 
@@ -476,6 +990,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
       `,
       values: [
         project,
+        req.body.user_id,
         req.body.email,
         req.body.rol,
         new Date(),
@@ -483,25 +998,59 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
       ]
     });
 
+    // Regresa el usuario insertado
     return res.status(200).send({
       status: "Usuario guardado",
       usuarios: rows[0]
     });
 
   } catch (error) {
+    // Regresa un error en caso de que algo salga mal
     return res.status(400).send({ message: error.message });
   }
 };
 
 
+/**
+ * Elimina un usuario de un proyecto
+ * @swagger
+ * /projects/{project}/shared/user/{user_id}/remove:
+ *   delete:
+ *     tags: [Proyectos]
+ *     summary: Elimina un usuario de un proyecto
+ *     description: Elimina un usuario de un proyecto
+ *     parameters:
+ *       - in: path
+ *         name: project
+ *         required: true
+ *         description: ID del proyecto
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Usuario eliminado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci n
+ */
 projectsController.sharedProjectsUserRemove = async (req, res) => {
+  // Verifica si el usuario proporcion&oacute; el email del usuario
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
 
+  // Obtiene el id del proyecto
   const project = req.params.project;
   const id = req.params.user_id;
 
   try {
+    // Elimina el usuario de la tabla proyectos_usuarios
     await databasePool.query({
       text: `
         DELETE FROM public.proyectos_usuarios
@@ -512,24 +1061,74 @@ projectsController.sharedProjectsUserRemove = async (req, res) => {
       ]
     });
 
+    // Regresa el usuario eliminado
     return res.status(200).send({
       'status': 'Usuario eliminado'
     });
 
   } catch (error) {
+    // Regresa un error en caso de que algo salga mal
     return res.status(400).send({ message: error.message });
   }
 };
 
-
+/**
+ * Actualiza el rol de un usuario en un proyecto
+ * @swagger
+ * /projects/{project}/shared/user/{user_id}/update:
+ *   put:
+ *     tags: [Proyectos]
+ *     summary: Actualiza el rol de un usuario en un proyecto
+ *     description: Actualiza el rol de un usuario en un proyecto
+ *     parameters:
+ *       - in: path
+ *         name: project
+ *         required: true
+ *         description: ID del proyecto
+ *       - in: path
+ *         name: user_id
+ *         required: true
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               project:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del usuario
+ *               rol:
+ *                 type: string
+ *                 description: Rol del usuario en el proyecto (administrar, revisar, aporta, ver)
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci n
+ * 
+ */
 projectsController.sharedProjectsUserUpdate = async (req, res) => {
+  // Verifica si el usuario proporcion&oacute; el email del usuario
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
 
+  // Obtiene el id del proyecto y el id del usuario
   const project = req.params.project;
   const id = req.params.user_id;
 
   try {
+    // Actualiza el rol del usuario en la tabla proyectos_usuarios
     await databasePool.query({
       text: `
         UPDATE public.proyectos_usuarios
@@ -542,11 +1141,13 @@ projectsController.sharedProjectsUserUpdate = async (req, res) => {
       ]
     });
 
+    // Regresa el usuario actualizado
     return res.status(200).send({
       'status': 'Usuario actualizado'
     });
 
   } catch (error) {
+    // Regresa un error en caso de que algo salga mal
     return res.status(400).send({ message: error.message });
   }
 };

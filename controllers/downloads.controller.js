@@ -7,21 +7,88 @@ const JSZip = require('jszip');
 const downloadsController = {};
 
 
+/**
+ * Obtiene la lista de descargas de un usuario
+ * @swagger
+ * /downloads/user:
+ *   get:
+ *     tags: [Descargas]
+ *     summary: Obtiene la lista de descargas de un usuario
+ *     description: Obtiene la lista de descargas de un usuario
+ *     requestBody:
+ *       required: true
+ *       content:	
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string	
+ *                 description: Correo electr&oacute;nico del usuario	
+ *               page:
+ *                 type: integer
+ *                 description: P gina actual
+ *               limit:
+ *                 type: integer
+ *                 description: L mite de descargas por p gina
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: P gina actual
+ *                     limit:
+ *                       type: integer
+ *                       description: L mite de descargas por p gina
+ *                     total:
+ *                       type: integer
+ *                       description: Total de descargas
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total de p ginas
+ *                 descargas:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID de la descarga
+ *                       usuario_id:
+ *                         type: string
+ *                         description: Correo electr nico del usuario que realiz la descarga
+ *                       proyecto_id:
+ *                         type: integer
+ *                         description: ID del proyecto al que se realiz la descarga
+ *                       status:
+ *                         type: string
+ *                         description: Estado de la descarga
+ */
 downloadsController.listUserDownload = async (req, res) => {
 	try {
+		// Obtiene la lista de descargas de un usuario
 		const page = parseInt(req.query.page, 12) || 1;
 		const limit = 12;
 		const offset = (page - 1) * limit;
 
 		const { rows } = await databasePool.query({
 			text: `
-				SELECT 
+				SELECT
 					l.*
-                FROM public.descargas as l
+				FROM public.descargas as l
 				WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
 				LIMIT  $1
-      			OFFSET $2
+				OFFSET $2
 			`,
+			values: [limit, offset]
 		});
 
 		const countQuery = `
@@ -48,13 +115,53 @@ downloadsController.listUserDownload = async (req, res) => {
 			descargas: downloads
 		});
 	} catch (error) {
+		// En caso de error, devuelve un mensaje de error
 		return res.status(400).send({ message: error.message });
 	}
 }
 
 
+/**
+ * Elimina una descarga de un usuario
+ * @swagger
+ * /downloads/user/{id}:
+ *   delete:
+ *     tags: [Descargas]
+ *     summary: Elimina una descarga de un usuario
+ *     description: Elimina una descarga de un usuario
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la descarga
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: ID de la descarga	
+ *               email:
+ *                 type: string
+ *                 description: Correo electr&oacute;nico del usuario
+ *     responses:
+ *       200:
+ *         description: Descarga removido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Estado de la operaci n
+ */
 downloadsController.removeUserDownload = async (req, res) => {
 	try {
+		// Elimina la descarga de la base de datos
 		const { rows } = await databasePool.query({
 			text: `
 				DELETE FROM public.descargas
@@ -62,10 +169,12 @@ downloadsController.removeUserDownload = async (req, res) => {
 			`,
 		});
 
-		res.json({
+		// Retorna un mensaje de descarga removido
+		return res.status(200).json({
 			status: "Descarga removido"
 		});
 	} catch (error) {
+		// En caso de error, devuelve un mensaje de error
 		return res.status(400).send({ message: error.message });
 	}
 }
@@ -252,7 +361,6 @@ downloadsController.userDownloadRegisters = async (req, res) => {
 						texto_respuestas += pregunta["id_pregunta"] + ".- " + pregunta["texto"] + ". ";
 						texto_respuestas += "R= " + pregunta["respuesta"]["selected_answer"] + "\n";
 						info[pregunta["id_pregunta"] + ".- " + pregunta["texto"]] = pregunta["respuesta"]["selected_answer"]
-
 						//pregunta condicionada
 						//si existe una pregunta condicionada a la respuesta seleccionada
 						if (pregunta["respuesta"]["conditional_answer"][pregunta["respuesta"]["selected_answer"]] != null && pregunta["respuesta"]["conditional_answer"][pregunta["respuesta"]["selected_answer"]] != undefined) {
@@ -265,7 +373,6 @@ downloadsController.userDownloadRegisters = async (req, res) => {
 								pregunta_id = pregunta_condicionada["id_pregunta"]
 							}
 							texto_respuestas += pregunta_id + ".- " + pregunta_condicionada["texto"] + ". "
-
 
 							if (pregunta_condicionada["tipo"] == 'ABIERTA') {
 								texto_respuestas += "R= " + pregunta_condicionada["respuesta"] + "\n";
@@ -467,12 +574,69 @@ downloadsController.listReviewer = async (req, res) => {
 	}
 }
 
+/**
+ * Actualiza el estado de una descarga a EN REVISIÓN y notifica al curador
+ * 
+ * @swagger
+ * /downloads/reviewer/status/{id}:
+ *   put:
+ *     tags: [Descargas]
+ *     summary: Actualiza el estado de una descarga a EN REVISIÓN y notifica al curador
+ *     description: Actualiza el estado de una descarga a EN REVISIÓN y notifica al curador
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la descarga
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 description: Estado de la descarga
+ *               report:
+ *                 type: string
+ *                 description: Reporte del curador
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del curador
+ *     responses:
+ *       200:
+ *         description: Descarga actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Mensaje de respuesta
+ */
+/*
+ * Actualiza el estado de una descarga a EN REVISIÓN y notifica al curador
+ * 
+ * @param {object} req - Request object
+ * @param {object} res - Response object
+ */
 downloadsController.updateStatusReviewer = async (req, res) => {
+	// Verifica si se proporcion  el estado de la descarga
 	if (!req.body.status) return res.status(400).send({ message: "Estado faltante" });
+
+	// Verifica si se proporcion  el reporte del curador
 	if (!req.body.report) return res.status(400).send({ message: "Reporte faltante" });
+
+	// Verifica si se proporcion  el ID del curador
 	if (!req.body.user_id) return res.status(400).send({ message: "ID faltante" });
 
+	// Verifica si se proporcion  el ID de la descarga
+	if (!req.params.id) return res.status(400).send({ message: "ID faltante" });
+
 	try {
+		// Actualiza el estado de la descarga a EN REVISIÓN y notifica al curador
 		const updateSql = {
 			text: `
 				UPDATE public.descargas
@@ -490,6 +654,7 @@ downloadsController.updateStatusReviewer = async (req, res) => {
 
 		const { rows } = await databasePool.query(updateSql);
 
+		// Retorna un mensaje de descarga actualizada
 		return res.status(200).send({
 			message: "descarga actualizada",
 		});

@@ -2,7 +2,23 @@ const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
 const cors = require("cors");
+const swaggerJSDoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 
+
+const options = {
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'API Pública',
+        version: '1.0.0',
+        description: 'Documentación de la API',
+      },
+    },
+    apis: ['./controllers/*.js'],
+  };
+  
+const swaggerSpec = swaggerJSDoc(options);
 const app = express();
 const { validarToken } = require('./middleware/auth');
 //app.use(validarToken);
@@ -23,6 +39,8 @@ app.use(express.json({limit:'500mb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('downloads'));
 
