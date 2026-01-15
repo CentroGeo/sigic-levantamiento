@@ -787,11 +787,69 @@ downloadsController.updateStatusReviewer = async (req, res) => {
 };
 
 
+/**
+ * Obtiene las descargas de un proyecto
+ * 
+ * @swagger
+ * /downloads/owner/downloads:
+ *   post:
+ *     tags: [Descargas]
+ *     summary: Obtiene las descargas de un usuario
+ *     description: Obtiene las descargas de un usuario
+ *     parameters:
+ *       - in: query
+ *         name: project_id
+ *         required: true
+ *         description: ID del proyecto
+ *       - in: query
+ *         name: user_id
+ *         required: true
+ *         description: ID del usuario
+ *       - in: query
+ *         name: project_name
+ *         required: true
+ *         description: Nombre del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               project_id:
+ *                 type: integer
+ *                 description: ID del proyecto
+ *               user_id:
+ *                 type: integer
+ *                 description: ID del usuario
+ *               project_name:
+ *                 type: string
+ *                 description: Nombre del proyecto
+ *     responses:
+ *       200:
+ *         description: Descargas obtenidas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Mensaje de respuesta
+ */
 downloadsController.listOwnerDownloads = async (req, res) => {
 	try {
+		if (!req.body.project_id) return res.status(400).send({ message: "Id de proyecto faltante" });
+		if (!req.body.user_id) return res.status(400).send({ message: "user id faltante" });
+		if (!req.body.project_name) return res.status(400).send({ message: "nombre del proyecto faltante" });
+
+		let statusLev = "NO REVISADO"
+		let idUsuario = req.body.user_id
+		let nombreArchivo = req.body.nameFileToExport
+		let descripcionArchivo = req.body.descriptionFileToExport
+		let idProyecto = req.body.project_id
 		let filepath = ""
 		let filepathIncomplete = ""
-
 		let arrFileMedia = [];
 		let fechaLevantamiento = null
 		let info = {}
@@ -800,9 +858,6 @@ downloadsController.listOwnerDownloads = async (req, res) => {
 		let levantamientosBook = null
 		let mediaArr = {}
 
-		if (!req.body.project_id) return res.status(400).send({ message: "Id de proyecto faltante" });
-		if (!req.body.user_id) return res.status(400).send({ message: "user id faltante" });
-		if (!req.body.project_name) return res.status(400).send({ message: "nombre del proyecto faltante" });
 
 
 		filepathIncomplete = (new Date().toLocaleString('es-MX', { timezone: 'America/Mexico_City' })).replace(/[&\/\\#, +()$~%.'":*?<>{}]/g, '_');
@@ -885,13 +940,32 @@ downloadsController.listOwnerDownloads = async (req, res) => {
 			}
 		}
 
-		zip.generateAsync({ type: 'nodebuffer' })
-			.then((buffer) => {
-				// Send zip as a download
-				//console.log("zip generado!!!!", buffer)
-				res.setHeader('Content-Type', 'application/zip');
-				res.setHeader('Content-disposition', 'attachment; filename=' + filepath);
-				res.end(buffer);
+		zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true })
+			.pipe(fs.createWriteStream(filepath))
+			.on('finish', async function () {
+				console.log("zip generado!!!!")
+
+				let query = `
+					INSERT INTO public.descargas(nombre_descarga, descripcion, usuario_id, fecha_solicitud, file_path, status, id_proyecto)
+					VALUES($1, $2, $3, $4, $5, $6, $7)
+					returning *;
+				`;
+
+				const { rows } = await databasePool.query({
+					text: query,
+					values: [
+					  nombreArchivo,
+					  descripcionArchivo,
+					  idUsuario,
+					  new Date(),
+					  filepath,
+					  statusLev,
+					  idProyecto
+					]
+				});
+				
+				return res.status(201).json(rows);
+
 			})
 
 	} catch (error) {
