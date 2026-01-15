@@ -19,14 +19,19 @@ router.put('/update/:id', filer.sigleUpload("image"), projectsController.updateP
 router.put('/deactivate/:id', projectsController.deactivateProject);
 router.post('/register/:id', projectsController.getRegisterProject);
 
-//Apis para compartir poryectos con otros usuarios
+//Apis para compartir proyectos con otros usuarios
 router.post('/shared/:project/user/list', projectsController.sharedProjectsUserList);
 router.post('/shared/:project/user/add', projectsController.sharedProjectsUserAdd);
 router.delete('/shared/:project/user/:user_id/remove', projectsController.sharedProjectsUserRemove);
 router.post('/shared/:project/user/:user_id/update', projectsController.sharedProjectsUserUpdate);
 
+//Apis para las vistas de revisores
+router.post('/reviewer/list', projectsController.reviewerProjects);
 
-//Api para elminar
+//Api para cambiar status de los proyectos
+router.post('/reviewer/status/:id', projectsController.reviewerProjectsStatus);
+
+//Api para eliminar sin no se utiliza
 router.post('/raising/:project/list', projectsController.raisingProjectsUserList);
 
 module.exports = router;

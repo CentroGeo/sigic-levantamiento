@@ -1186,4 +1186,199 @@ projectsController.raisingProjectsUserList = async (req, res) => {
   }
 };
 
+/**
+ * Obtiene la lista de proyectos pendientes de revisión de un usuario
+ * 
+ * @swagger
+ * /notification/projects/reviewer:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: Obtiene la lista de proyectos pendientes de revisi n de un usuario
+ *     description: Obtiene la lista de proyectos pendientes de revisi n de un usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string 
+ *                 description: Correo electrónico del usuario
+ *               status:
+ *                 type: string 
+ *                 description: Estado del proyecto
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total:
+ *                   type: integer
+ *                   description: N  mero de proyectos pendientes
+ *                 projects:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID del proyecto
+ *                       nombre:
+ *                         type: string
+ *                         description: Nombre del proyecto
+ *                       ruta:
+ *                         type: string
+ *                         description: Ruta del proyecto
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: Ruta de la carpeta de medios del proyecto
+ */
+projectsController.reviewerProjects = async (req, res) => {
+  try {
+    const userEmail = req.body.email;
+
+    if (!userEmail) {
+      return res.status(400).send({ message: "Correo electr nico faltante" });
+    }
+
+    const page = parseInt(req.body.page, 12) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    const status = req.body.status || '';
+
+    // Obtiene la lista de proyectos pendientes de revisi n de un usuario
+    const query = `
+      SELECT l.*,
+            l.region AS ruta,
+            pu.rol as rol,
+            CONCAT('apidev/', REPLACE(l.imagen,'./','')) AS path_media_folder,
+            l.es_institucion,
+            count(l2.id) as num_aportaciones
+      FROM public.proyectos AS l
+      INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
+      LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
+      WHERE 
+        pu.correo = '${userEmail}'
+        AND pu.rol IN ('administrar', 'revisar')
+        AND pu.status = $1
+      GROUP BY l.id, pu.rol
+      ORDER BY l.id DESC
+      LIMIT  $2
+      OFFSET $3
+    `;
+
+    // Obtiene el n  mero total de proyectos pendientes de revisi n de un usuario
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM public.proyectos AS l
+      INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
+      WHERE 
+        pu.correo = '${userEmail}'
+        AND pu.rol IN ('administrar', 'revisar', 'aporta', 'ver')
+        AND pu.status = $1
+    `;
+
+    const [{ rows: proyectos }, { rows: countRows }] = await Promise.all([
+      databasePool.query({ text: query, values: [status, limit, offset] }),
+      databasePool.query({ text: query, values: [status] })
+    ]);
+    
+    const total = parseInt(countRows[0].total, 12);
+    const totalPages = Math.ceil(total / limit)
+
+    return res.status(200).send({
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      },
+      proyectos: proyectos
+    });
+  } catch (error) {
+    return res.status(400).send({ message: error.message });
+  }
+}
+
+/**
+ * @swagger
+ * /projects/{id}/status:
+ *   put:
+ *     tags: [Proyectos]
+ *     summary: "Actualizar el estado de un proyecto"
+ *     description: "Actualizar el estado de un proyecto"
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del proyecto a actualizar    
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string 
+ *               report:
+ *                 type: string 
+ *               user_id:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: "Proyecto actualizado"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ */
+projectsController.reviewerProjectsStatus = async (req, res) => {
+  try {
+    // Actualiza el estado de notificado de un levantamiento
+    if (!req.body.status)
+      return res.status(400).send({ message: "Estado faltante" });
+    if (!req.body.report)
+      return res.status(400).send({ message: "Reporte faltante" });
+    if (!req.body.user_id)
+      return res.status(400).send({ message: "ID faltante" });
+  
+    const updateSql = {
+      text: `
+				UPDATE public.proyectos
+				SET status=$1, id_curador=$2, fecha_aceptacion=$3, comentario_curador=$4, es_notificado=true
+				${req.body.status == "EN REVISIÓN" ? ", en_pausa=true" : ""}
+				${req.body.status == "APROBADO" ? ", activo=true" : ""}
+				WHERE id=$5 returning *
+			`,
+      values: [
+        req.body.status,
+        req.body.user_id,
+        new Date(),
+        req.body.report,
+        req.params.id
+      ]
+    };
+
+    // Ejecuta la consulta de actualizaci n
+    const { rows } = await databasePool.query(updateSql);
+
+    // Devuelve una respuesta con el estado de la operaci n
+    return res.status(200).send({
+      status: "ok",
+      message: "proyecto actualizado"
+    });
+  } catch (error) {
+    // Devuelve una respuesta con el mensaje de error
+    return res.status(400).send({ message: error.message });
+  }
+};
+
 module.exports = projectsController;

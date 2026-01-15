@@ -406,14 +406,77 @@ levantamientosController.getRegisterV2 = async (req, res) => {
   }
 };
 
-levantamientosController.list = async (req, res) => {  
+/**
+ * List the projects of a user
+ * @swagger
+ * /levantamientos/user/list:
+ *   get:
+ *     tags: [Levantamientos]
+ *     summary: List the projects of a user
+ *     description: List the projects of a user
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: Number of projects per page
+ *       - in: body
+ *         name: email
+ *         required: true
+ *         description: Email of the user
+ *       - in: body
+ *         name: status
+ *         required: true
+ *         description: Status of the projects
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: Page number
+ *                     limit:
+ *                       type: integer
+ *                       description: Number of projects per page
+ *                     total:
+ *                       type: integer
+ *                       description: Total number of projects
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total number of pages
+ *                 levantamientos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID of the project
+ *                       nombre:
+ *                         type: string
+ *                         description: Name of the project
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: Path of the media folder of the project
+ */
+levantamientosController.listUser = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 12) || 1;
     const limit = 12;
     const offset = (page - 1) * limit;
     
     if (!req.body.email)
-      return res.status(400).send({ message: "Correo electrónico faltante" });
+      return res.status(400).send({ message: "Correo electr nico faltante" });
   
     let query = `
       SELECT 
@@ -655,5 +718,121 @@ levantamientosController.chatCreator = async (req, res) => {
   }
 }
 
+/**
+ * List the projects that a user can review
+ * @swagger
+ * /levantamientos/list/reviewer:
+ *   get:
+ *     tags: [Levantamientos]
+ *     summary: List the projects that a user can review
+ *     description: List the projects that a user can review
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: Number of projects per page
+ *       - in: body
+ *         name: email
+ *         required: true
+ *         description: Email of the user
+ *       - in: body
+ *         name: status
+ *         required: true
+ *         description: Status of the projects
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: Page number
+ *                     limit:
+ *                       type: integer
+ *                       description: Number of projects per page
+ *                     total:
+ *                       type: integer
+ *                       description: Total number of projects
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total number of pages
+ *                 levantamientos:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID of the project
+ *                       title:
+ *                         type: string
+ *                         description: Title of the project
+ *                       path_media_folder:
+ *                         type: string
+ *                         description: Path of the project media folder
+ */
+levantamientosController.listReviewer = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 12) || 1;
+    const limit = 12;
+    const offset = (page - 1) * limit;
+    
+    if (!req.body.email)
+      return res.status(400).send({ message: "Correo electrónico faltante" });
+  
+    let query = `
+      SELECT 
+        l.*, l.nombre as title, media_array as path_media_folder
+      FROM levantamientos l
+      inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
+      WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+      LIMIT  $1
+      OFFSET $2
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM levantamientos l
+      inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
+      WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+    `;
+
+    const [{ rows: levantamientos }, { rows: countRows }] = await Promise.all([
+      databasePool.query({ text: query, values: [limit, offset] }),
+      databasePool.query(countQuery)
+    ]);
+
+    const total = parseInt(countRows[0].total, 12);
+    const totalPages = Math.ceil(total / limit)
+
+    return res.status(200).send({
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      },
+      levantamientos: levantamientos
+    });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(400).send({
+      status: "Error",
+      error: error,
+      message: error.message
+    });
+  }
+};
 
 module.exports = levantamientosController;

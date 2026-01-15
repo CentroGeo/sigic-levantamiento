@@ -9,11 +9,16 @@ const auth = new Authenticator();
 const filer = new Filer("levantamientos");
 
 //Apis para las creación, edicion y eliminación de levantamientos
-router.post("/user/list", levantamientosController.list);
+router.post("/user/list", levantamientosController.listUser);
+
 router.post("/user/create", levantamientosController.create);
 router.post('/user/register/v2', levantamientosController.getRegisterV2);
 //router.post('/user/register', levantamientosController.getRegister);
 //router.post("/user/update", auth.verifyToken, levantamientosController.update);
+
+
+//Api para revisor de levantamientos
+router.post("/reviewer/list", levantamientosController.listReviewer);
 
 //Api para chat de un levantamiento
 router.post("/chat/list", levantamientosController.listChat);
