@@ -790,11 +790,11 @@ levantamientosController.listReviewer = async (req, res) => {
     if (!req.body.email)
       return res.status(400).send({ message: "Correo electrónico faltante" });
   
-    let query = `
+    const query = `
       SELECT 
         l.*, l.nombre as title, media_array as path_media_folder
       FROM levantamientos l
-      inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
+      INNER join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
       WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
       LIMIT  $1
       OFFSET $2

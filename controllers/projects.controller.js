@@ -20,6 +20,15 @@ const projectsController = {};
  *     tags: [Proyectos]
  *     summary: "Obtener proyectos p&uacute;blicos"
  *     description: "Obtener la lista de proyectos p&uacute;blicos"
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: "P&aacute;gina"
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: "N&uacute;mero de proyectos por p&aacute;gina"
  *     responses:
  *       200:
  *         description: "Lista de proyectos p&uacute;blicos"

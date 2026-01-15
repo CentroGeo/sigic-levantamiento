@@ -10,11 +10,16 @@ const downloadsController = {};
 /**
  * Obtiene la lista de descargas de un usuario
  * @swagger
- * /downloads/user:
- *   get:
+ * /downloads/user/list:
+ *   post:
  *     tags: [Descargas]
  *     summary: Obtiene la lista de descargas de un usuario
  *     description: Obtiene la lista de descargas de un usuario
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del usuario
  *     requestBody:
  *       required: true
  *       content:	
@@ -554,23 +559,145 @@ downloadsController.userDownloadRegisters = async (req, res) => {
 	}
 }
 
-
+/**
+ * Lists the downloads of a user with a certain status
+ * 
+ * @swagger
+ * /downloads/reviewer/list:
+ *   post:
+ *     tags: [Descargas]
+ *     summary: Lists the downloads of a user with a certain status
+ *     description: Lists the downloads of a user with a certain status
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID of the user
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Number of downloads per page
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:	
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email of the user
+ *               status:
+ *                 type: string
+ *                 description: Status of the downloads
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                       description: Page number
+ *                     limit:
+ *                       type: integer
+ *                       description: Number of downloads per page
+ *                     total:
+ *                       type: integer
+ *                       description: Total number of downloads
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total number of pages
+ *                 downloads:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         description: ID of the download
+ *                       nombre:
+ *                         type: string
+ *                         description: Name of the download
+ *                       descripcion:
+ *                         type: string
+ *                         description: Description of the download
+ *                       usuario_id:
+ *                         type: string
+ *                         description: ID of the user who made the download
+ *                       fecha_solicitud:
+ *                         type: string
+ *                         description: Date when the download was made
+ *                       file_path:
+ *                         type: string
+ *                         description: Path of the downloaded file
+ *                       status:
+ *                         type: string
+ *                         description: Status of the download
+ */
 downloadsController.listReviewer = async (req, res) => {
 	try {
-		const { rows } = await databasePool.query({
-			text: `
-				SELECT 
-					l.*
-                FROM public.descargas as l
-				${req.body.category == "ADMINISTRADOR" ? "" : `where (l.status = 'NO REVISADO' or i.id_curador = '${req.body.email}') and l.usuario_id <> '${req.body.email}'`}
-			`,
-		});
+		const page = parseInt(req.query.page, 12) || 1;
+		const limit = 12;
+		const offset = (page - 1) * limit;
+		
+		if (!req.body.email)
+			return res.status(400).send({ message: "Correo electrónico faltante" });
+	
+		const query = `
+			SELECT 
+				l.*
+			FROM public.descargas as l
+			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
+			WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+			LIMIT  $1
+			OFFSET $2
+		`
 
+		const countQuery = `
+			SELECT COUNT(*) AS total
+			FROM public.descargas as l
+			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
+			WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+		`;
+
+		const [{ rows: descargas }, { rows: countRows }] = await Promise.all([
+			databasePool.query({ text: query, values: [limit, offset] }),
+			databasePool.query(countQuery)
+		]);
+		
+		const total = parseInt(countRows[0].total, 12);
+		const totalPages = Math.ceil(total / limit)
+	  
 		return res.status(200).send({
-			list: rows
+			pagination: {
+			  page,
+			  limit,
+			  total,
+			  totalPages
+			},
+			descargas: descargas
 		});
+	  
 	} catch (error) {
-		return res.status(400).send({ message: error.message });
+		return res.status(400).send({
+			status: "Error",
+			error: error,
+			message: error.message
+		});
 	}
 }
 
@@ -616,12 +743,6 @@ downloadsController.listReviewer = async (req, res) => {
  *                   type: string
  *                   description: Mensaje de respuesta
  */
-/*
- * Actualiza el estado de una descarga a EN REVISIÓN y notifica al curador
- * 
- * @param {object} req - Request object
- * @param {object} res - Response object
- */
 downloadsController.updateStatusReviewer = async (req, res) => {
 	// Verifica si se proporcion  el estado de la descarga
 	if (!req.body.status) return res.status(400).send({ message: "Estado faltante" });
@@ -656,7 +777,8 @@ downloadsController.updateStatusReviewer = async (req, res) => {
 
 		// Retorna un mensaje de descarga actualizada
 		return res.status(200).send({
-			message: "descarga actualizada",
+			status: "ok",
+			message: "descarga actualizada"
 		});
 	} catch (error) {
 		console.log(error)
