@@ -410,7 +410,7 @@ levantamientosController.getRegisterV2 = async (req, res) => {
  * List the projects of a user
  * @swagger
  * /levantamientos/user/list:
- *   get:
+ *   post:
  *     tags: [Levantamientos]
  *     summary: List the projects of a user
  *     description: List the projects of a user
@@ -539,7 +539,7 @@ levantamientosController.listChat = async (req, res) => {
 /**
  * Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
  * @swagger
- * /levantamientos/{id}/chat/reviewer:
+ * /levantamientos/chat/reviewer/{id}:
  *   put:
  *     tags: [Levantamientos]
  *     summary: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
@@ -636,7 +636,7 @@ levantamientosController.chatReviewer = async (req, res) => {
 /**
  * Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
  * @swagger
- * /levantamientos/{id}/chat/creator:
+ * /levantamientos/chat/creator/{id}:
  *   put:
  *     tags: [Levantamientos]
  *     summary: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
@@ -721,8 +721,8 @@ levantamientosController.chatCreator = async (req, res) => {
 /**
  * List the projects that a user can review
  * @swagger
- * /levantamientos/list/reviewer:
- *   get:
+ * /levantamientos/reviewer/list:
+ *   post:
  *     tags: [Levantamientos]
  *     summary: List the projects that a user can review
  *     description: List the projects that a user can review

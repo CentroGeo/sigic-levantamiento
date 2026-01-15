@@ -391,7 +391,7 @@ projectsController.sharedProjects = async (req, res) => {
 /**
  * @swagger
  * /projects/register/:id:
- *   get:
+ *   post:
  *     tags: [Proyectos]
  *     summary: Obtiene un proyecto por su id y usuario
  *     description: Obtiene un proyecto por su id y usuario
@@ -771,7 +771,7 @@ projectsController.updateProject = async (req, res) => {
 /**
  * Desactiva un proyecto
  * @swagger
- * /projects/{id}/deactivate:
+ * /projects/deactivate/{id}:
  *   put:
  *     tags: [Proyectos]
  *     summary: Desactiva un proyecto
@@ -851,8 +851,8 @@ projectsController.deactivateProject = async (req, res) => {
 
 /**
  * @swagger
- * /projects/{project}/shared/user/list:
- *   get:
+ * /projects/shared/{project}/user/list:
+ *   post:
  *     tags: [Proyectos]
  *     summary: "Obtener lista de usuarios que tienen acceso a un proyecto"
  *     description: "Obtener la lista de usuarios que tienen acceso a un proyecto"
@@ -929,7 +929,7 @@ projectsController.sharedProjectsUserList = async (req, res) => {
  * Agrega un usuario a un proyecto compartido
  * 
  * @swagger
- * /projects/{project}/shared/user/add:
+ * /projects/shared/{project}/user/add:
  *   post:
  *     tags: [Proyectos]
  *     summary: Agrega un usuario a un proyecto compartido
@@ -1023,7 +1023,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
 /**
  * Elimina un usuario de un proyecto
  * @swagger
- * /projects/{project}/shared/user/{user_id}/remove:
+ * /projects/shared/{project}/user/{user_id}/remove:
  *   delete:
  *     tags: [Proyectos]
  *     summary: Elimina un usuario de un proyecto
@@ -1084,8 +1084,8 @@ projectsController.sharedProjectsUserRemove = async (req, res) => {
 /**
  * Actualiza el rol de un usuario en un proyecto
  * @swagger
- * /projects/{project}/shared/user/{user_id}/update:
- *   put:
+ * /projects/shared/{project}/user/{user_id}/update:
+ *   post:
  *     tags: [Proyectos]
  *     summary: Actualiza el rol de un usuario en un proyecto
  *     description: Actualiza el rol de un usuario en un proyecto
@@ -1199,8 +1199,8 @@ projectsController.raisingProjectsUserList = async (req, res) => {
  * Obtiene la lista de proyectos pendientes de revisión de un usuario
  * 
  * @swagger
- * /notification/projects/reviewer:
- *   get:
+ * /projects/reviewer/list:
+ *   post:
  *     tags: [Proyectos]
  *     summary: Obtiene la lista de proyectos pendientes de revisi n de un usuario
  *     description: Obtiene la lista de proyectos pendientes de revisi n de un usuario
@@ -1315,8 +1315,8 @@ projectsController.reviewerProjects = async (req, res) => {
 
 /**
  * @swagger
- * /projects/{id}/status:
- *   put:
+ * /projects/status/{id}:
+ *   post:
  *     tags: [Proyectos]
  *     summary: "Actualizar el estado de un proyecto"
  *     description: "Actualizar el estado de un proyecto"

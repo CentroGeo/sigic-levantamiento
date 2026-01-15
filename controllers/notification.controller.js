@@ -79,8 +79,8 @@ notificationController.getRolUser = async (req, res) => {
  * Obtiene la lista de proyectos en los que el usuario tiene acceso y no ha sido notificado
  *
  * @swagger
- * /notification/projects/ownership:
- *   get:
+ * /notification/projects/owner:
+ *   post:
  *     tags: [Notificaciones]
  *     summary: Obtiene la lista de proyectos en los que el usuario tiene acceso y no ha sido notificado
  *     description: Obtiene la lista de proyectos en los que el usuario tiene acceso y no ha sido notificado
@@ -177,7 +177,7 @@ notificationController.projectsOwnershipNotification = async (req, res) => {
 /**
  * Desactiva las notificaciones de los proyectos en los que el usuario tiene acceso
  * @swagger
- * /notification/projects/ownership/down:
+ * /notification/projects/owner/down:
  *   post:
  *     tags: [Notificaciones]
  *     summary: Desactiva las notificaciones de los proyectos en los que el usuario tiene acceso
@@ -254,7 +254,7 @@ notificationController.projectsOwnershipNotificationDown = async (req, res) => {
 
 /**
  * @swagger
- * /notification/projects/owner:
+ * /notification/raisings/owner:
  *   post:
  *     tags: [Notificaciones]
  *     summary: Obtener lista de proyectos propios de un usuario que tengan notificaciones pendientes
@@ -330,7 +330,7 @@ notificationController.raisingOwnershipNotification = async (req, res) => {
 /**
  * Desactiva las notificaciones de los proyectos propios de un usuario que tengan un estado en particular
  * @swagger
- * /notification/projects/ownership/down:
+ * /notification/raisings/owner/down:
  *   post:
  *     tags: [Notificaciones]
  *     summary: Desactiva las notificaciones de los proyectos propios de un usuario que tengan un estado en particular
@@ -413,7 +413,7 @@ notificationController.raisingOwnershipNotificationDown = async (req, res) => {
  * Obtiene la lista de notificaciones de descargas pendientes de un usuario
  * 
  * @swagger
- * /notification/downloads/ownership:
+ * /notification/downloads/owner:
  *   post:
  *     tags: [Notificaciones]
  *     summary: Obtiene la lista de notificaciones de descargas pendientes de un usuario
@@ -486,7 +486,7 @@ notificationController.downloadOwnershipNotification = async (req, res) => {
  * Desactiva las notificaciones de descargas pendientes de un usuario
  * 
  * @swagger
- * /notification/downloads/ownership/down:
+ * /notification/downloads/owner/down:
  *   post:
  *     tags: [Notificaciones]
  *     summary: Desactiva las notificaciones de descargas pendientes de un usuario
@@ -571,7 +571,7 @@ notificationController.downloadOwnershipNotificationDown = async (req, res) => {
  * Obtiene la lista de levantamientos pendientes de revisi n de un usuario
  * @swagger
  * /notification/raising/reviewer:
- *   get:
+ *   post:
  *     tags: [Notificaciones]
  *     summary: Obtiene la lista de levantamientos pendientes de revisi n de un usuario
  *     description: Obtiene la lista de levantamientos pendientes de revisi n de un usuario
@@ -651,7 +651,7 @@ notificationController.raisingReviewerNotifications = async (req, res) => {
  * Obtiene la lista de proyectos pendientes de revisi n de un usuario
  * @swagger
  * /notification/projects/reviewer:
- *   get:
+ *   post:
  *     tags: [Notificaciones]
  *     summary: Obtiene la lista de proyectos pendientes de revisi n de un usuario
  *     description: Obtiene la lista de proyectos pendientes de revisi n de un usuario
