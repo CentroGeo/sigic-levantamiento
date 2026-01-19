@@ -6,106 +6,6 @@ module.exports = {
     // Enable PostGIS extension
     await queryInterface.sequelize.query('CREATE EXTENSION IF NOT EXISTS postgis;');
 
-    // Table: areas
-    await queryInterface.createTable('areas', {
-      id: {
-        type: Sequelize.BIGINT,
-        primaryKey: true,
-        autoIncrement: true, // inferred from sequence
-        allowNull: false
-      },
-      geom: {
-        type: Sequelize.GEOMETRY
-      },
-      level: {
-        type: Sequelize.STRING(25)
-      }
-    });
-
-    // Table: binnacle
-    await queryInterface.createTable('binnacle', {
-      id: {
-        type: Sequelize.BIGINT,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-      },
-      module: {
-        type: Sequelize.STRING(150)
-      },
-      action: {
-        type: Sequelize.STRING(150)
-      },
-      date: {
-        type: Sequelize.DATE
-      },
-      monitor_id: {
-        type: Sequelize.BIGINT
-      },
-      observation: {
-        type: Sequelize.TEXT
-      },
-      user_id: {
-        type: Sequelize.TEXT
-      }
-    });
-
-    // Table: categories_places
-    await queryInterface.createTable('categories_places', {
-      id: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-      },
-      nombre_categoria: {
-        type: Sequelize.STRING(150)
-      },
-      enabled: {
-        type: Sequelize.BOOLEAN
-      },
-      icon: {
-        type: Sequelize.STRING(150)
-      },
-      url_image: {
-        type: Sequelize.STRING(150)
-      }
-    });
-
-    // Table: configuracion
-    await queryInterface.createTable('configuracion', {
-      id: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-      },
-      url_imagen: {
-        type: Sequelize.STRING(255)
-      },
-      color_principal: {
-        type: Sequelize.STRING
-      },
-      color_secundario: {
-        type: Sequelize.STRING
-      },
-      color_terciario: {
-        type: Sequelize.STRING
-      },
-      app_name: {
-        type: Sequelize.STRING(255)
-      },
-      latitud: {
-        type: Sequelize.DOUBLE
-      },
-      longitud: {
-        type: Sequelize.DOUBLE
-      },
-      zoom: {
-        type: Sequelize.INTEGER
-      }
-    });
-
     // Table: descargas
     await queryInterface.createTable('descargas', {
       id: {
@@ -143,7 +43,10 @@ module.exports = {
       },
       es_notificado: {
         type: Sequelize.BOOLEAN
-      }
+      },
+      id_proyecto: {
+        type: Sequelize.BIGINT
+      },
     });
 
     // Table: devices
@@ -526,104 +429,6 @@ module.exports = {
       }
     });
 
-    // Table: places
-    await queryInterface.createTable('places', {
-      id: {
-        type: Sequelize.BIGINT,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-      },
-      nombre: {
-        type: Sequelize.STRING
-      },
-      slug: {
-        type: Sequelize.STRING
-      },
-      lat: {
-        type: Sequelize.STRING
-      },
-      lng: {
-        type: Sequelize.STRING
-      },
-      created_at: {
-        type: Sequelize.DATE
-      },
-      updated_at: {
-        type: Sequelize.DATE
-      },
-      descripcion: {
-        type: Sequelize.STRING
-      },
-      seccion: {
-        type: Sequelize.STRING
-      },
-      publicado: {
-        type: Sequelize.STRING(10)
-      },
-      categoria_id: {
-        type: Sequelize.BIGINT,
-        references: {
-          model: 'categories_places',
-          key: 'id'
-        }
-      },
-      url: {
-        type: Sequelize.STRING
-      },
-      costo: {
-        type: Sequelize.STRING
-      },
-      horario: {
-        type: Sequelize.STRING
-      },
-      telefono: {
-        type: Sequelize.STRING
-      },
-      subtitulo: {
-        type: Sequelize.STRING
-      },
-      direccion: {
-        type: Sequelize.STRING
-      },
-      gob_federal: {
-        type: Sequelize.STRING(10)
-      },
-      actividades: {
-        type: Sequelize.STRING
-      },
-      masinformacion: {
-        type: Sequelize.STRING
-      },
-      video: {
-        type: Sequelize.STRING
-      },
-      pin_tipo: {
-        type: Sequelize.STRING
-      },
-      orden: {
-        type: Sequelize.BIGINT
-      },
-      map_info: {
-        type: Sequelize.STRING
-      },
-      working_hours: {
-        type: Sequelize.STRING
-      },
-      get_pin: {
-        type: Sequelize.STRING
-      },
-      geom: {
-        type: Sequelize.GEOMETRY
-      },
-      working: {
-        type: Sequelize.JSONB
-      },
-      active: {
-        type: Sequelize.BOOLEAN
-      }
-    });
-
     // Table: polygon
     await queryInterface.createTable('polygon', {
       id_polygon: {
@@ -648,7 +453,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false
       },
-      descripcion: {
+      categoria: {
         type: Sequelize.TEXT
       },
       institucion: {
@@ -687,7 +492,7 @@ module.exports = {
       objetivo: {
         type: Sequelize.TEXT
       },
-      especificaciones_multimedia: {
+      instrucciones: {
         type: Sequelize.STRING
       },
       producto: {
@@ -810,7 +615,10 @@ module.exports = {
       },
       es_notificado: {
         type: Sequelize.BOOLEAN
-      }
+      },
+      texto: {
+        type: Sequelize.TEXT
+      },
     });
 
     // Table: user_categories
@@ -827,92 +635,7 @@ module.exports = {
       }
     });
 
-    // Table: users
-    await queryInterface.createTable('users', {
-      id: {
-        type: Sequelize.UUID,
-        primaryKey: true,
-        allowNull: false
-      },
-      email: {
-        type: Sequelize.STRING(128),
-        allowNull: false
-      },
-      password: {
-        type: Sequelize.STRING(128),
-        allowNull: false
-      },
-      created_date: {
-        type: Sequelize.DATE
-      },
-      modified_date: {
-        type: Sequelize.DATE
-      },
-      inactive: {
-        type: Sequelize.BOOLEAN
-      },
-      reset_password_token: {
-        type: Sequelize.STRING(50)
-      },
-      reset_password_expires: {
-        type: Sequelize.DATE
-      },
-      username: {
-        type: Sequelize.STRING(128),
-        allowNull: false
-      },
-      username_id: {
-        type: Sequelize.BIGINT
-      },
-      profile_image: {
-        type: Sequelize.TEXT
-      },
-      usertype: {
-        type: Sequelize.STRING(30)
-      },
-      category: {
-        type: Sequelize.INTEGER
-      }
-    });
-
-    // Table: users_info
-    await queryInterface.createTable('users_info', {
-      id: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        allowNull: false
-      },
-      user_id: {
-        type: Sequelize.UUID,
-        allowNull: false
-      },
-      device_id: {
-        type: Sequelize.BIGINT
-      },
-      nombre: {
-        type: Sequelize.STRING
-      },
-      apellido: {
-        type: Sequelize.STRING
-      },
-      edad: {
-        type: Sequelize.BIGINT
-      },
-      sexo: {
-        type: Sequelize.STRING
-      },
-      nivel_estudios: {
-        type: Sequelize.STRING
-      },
-      idioma: {
-        type: Sequelize.STRING
-      },
-      ocupacion: {
-        type: Sequelize.STRING
-      }
-    });
-
+    
     // Table: version
     await queryInterface.createTable('version', {
       current_app_version: {

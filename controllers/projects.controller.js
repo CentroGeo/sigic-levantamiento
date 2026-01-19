@@ -553,12 +553,10 @@ projectsController.createProject = async (req, res) => {
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
   
   try {
-    //cambiar descripcion por categoria
-    //cambiar especificaciones_multimedia por instrucciones
     const { rows } = await databasePool.query({
       text: `INSERT INTO public.proyectos(
                   nombre, 
-                  descripcion, 
+                  categoria, 
                   institucion, 
                   imagen, 
                   activo, 
@@ -568,7 +566,7 @@ projectsController.createProject = async (req, res) => {
                   status,
                   lider,
                   objetivo, 
-                  especificaciones_multimedia, 
+                  instrucciones, 
                   producto, 
                   es_institucion, 
                   es_privada
@@ -712,18 +710,16 @@ projectsController.updateProject = async (req, res) => {
 
   try {
     // Actualizar el proyecto en la base de datos
-    //cambiar descripcion por categoria
-    //cambiar especificaciones_multimedia por instrucciones
     const { rows } = await databasePool.query({
       text: `UPDATE public.proyectos
               SET 
                 nombre=$1, 
-                descripcion=$2, 
+                categoria=$2, 
                 institucion=$3, 
                 ficha_proyecto=$4,
                 lider=$5,
                 objetivo=$6,
-                especificaciones_multimedia=$7,
+                instrucciones=$7,
                 producto=$8,
                 es_institucion=$9,
                 es_privada=$10
