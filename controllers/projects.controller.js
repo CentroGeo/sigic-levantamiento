@@ -984,22 +984,24 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
           correo, 
           rol, 
           created_date,
-          es_notificado
+          es_notificado,
+          texto
         ) VALUES (
           $1, 
           $2, 
           $3, 
           $4,
-          $5
+          $5,
+          $6
         )
       `,
       values: [
         project,
         req.body.user_id,
-        req.body.email,
         req.body.rol,
         new Date(),
-        true
+        true,
+        req.body.message
       ]
     });
 
