@@ -997,7 +997,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
       `,
       values: [
         project,
-        req.body.user_id,
+        req.body.email,
         req.body.rol,
         new Date(),
         true,
