@@ -184,6 +184,46 @@ downloadsController.removeUserDownload = async (req, res) => {
 	}
 }
 
+/**
+ * Exporta los levantamientos de un usuario en un archivo Excel
+ * @swagger
+ * /downloads/user/download:
+ *   post:
+ *     tags: [Descargas]
+ *     summary: Exporta los levantamientos de un usuario en un archivo Excel
+ *     description: Exporta los levantamientos de un usuario en un archivo Excel
+ *     parameters:
+ *       - in: body
+ *         name: idLevantamiento
+ *         required: true
+ *         description: ID de la descarga
+ *         schema:
+ *           type: integer
+ *       - in: body
+ *         name: userIDRequester
+ *         required: true
+ *         description: ID del usuario que solicitó la descarga
+ *         schema:
+ *           type: integer
+ *       - in: body
+ *         name: nameFileToExport
+ *         required: true
+ *         description: Nombre del archivo Excel que se va a crear
+ *         schema:
+ *           type: string
+ *       - in: body
+ *         name: descriptionFileToExport
+ *         required: true
+ *         description: Descripción del archivo Excel que se va a crear
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Descarga exportada
+ *       400:
+ *         description: Error al exportar la descarga
+ * 
+ */
 downloadsController.userDownloadRegisters = async (req, res) => {
 	console.log("exportLevantamientos")
 	try {
