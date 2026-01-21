@@ -847,7 +847,7 @@ downloadsController.updateStatusReviewer = async (req, res) => {
  *                 type: integer
  *                 description: ID del proyecto
  *               user_id:
- *                 type: integer
+ *                 type: string
  *                 description: ID del usuario
  *               project_name:
  *                 type: string
