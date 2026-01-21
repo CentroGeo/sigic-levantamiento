@@ -553,59 +553,49 @@ projectsController.createProject = async (req, res) => {
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
   
   try {
+    const fields = {
+      nombre: req.body.nombre,
+      descripcion: req.body.categoria,
+      institucion: req.body.institucion,
+      imagen: url_first_image,
+      activo: false,
+      id_propietario: req.body.id_propietario,
+      fecha_creacion: new Date(),
+      ficha_proyecto: req.body.ficha_proyecto,
+      status: "SIN EVALUAR",
+      lider: req.body.lider,
+      objetivo: req.body.objetivo,
+      especificaciones_multimedia: req.body.instrucciones,
+      producto: req.body.producto,
+      es_institucion: esInstitucion,
+      es_privada: true,
+    };
+
+    const filteredEntries = Object.entries(fields)
+      .filter(([_, value]) => value !== null && value !== undefined);
+
+    // Columnas
+    const columns = filteredEntries.map(([key]) => key);
+
+    // placeholders $1, $2, ...
+    const placeholders = filteredEntries.map((_, i) => `$${i + 1}`);
+
+    // Valores
+    const values = filteredEntries.map(([_, value]) => value);
+
+    const query = `
+      INSERT INTO public.proyectos (
+        ${columns.join(', ')}
+      )
+      VALUES (
+        ${placeholders.join(', ')}
+      )
+      RETURNING *
+    `;
+
     const { rows } = await databasePool.query({
-      text: `INSERT INTO public.proyectos(
-                  nombre, 
-                  categoria, 
-                  institucion, 
-                  imagen, 
-                  activo, 
-                  id_propietario, 
-                  fecha_creacion,
-                  ficha_proyecto, 
-                  status,
-                  lider,
-                  objetivo, 
-                  instrucciones, 
-                  producto, 
-                  es_institucion, 
-                  es_privada
-                )
-                VALUES(
-                  $1,
-                  $2,
-                  $3,
-                  $4,
-                  $5,
-                  $6,
-                  $7,
-                  $8,
-                  $9,
-                  $10,
-                  $11,
-                  $12,
-                  $13,
-                  $14,
-                  $15
-                )
-                returning *`,
-      values: [
-        req.body.nombre,
-        req.body.categoria,
-        req.body.institucion,
-        url_first_image,
-        false,
-        req.body.id_propietario,
-        new Date(),
-        req.body.ficha_proyecto,
-        "SIN EVALUAR",
-        req.body.lider,
-        req.body.objetivo,
-        req.body.instrucciones,
-        req.body.producto,
-        esInstitucion,
-        !!req.body.isPrivate,
-      ]
+      text: query,
+      values,
     });
 
     return res.status(200).send({
@@ -700,47 +690,53 @@ projectsController.createProject = async (req, res) => {
  */
 projectsController.updateProject = async (req, res) => {
   console.log("update project");
-
-  // Validar que se haya proporcionado el nombre del proyecto
   if (!req.body.nombre)
     return res.status(400).send({ message: "Falta el nombre del proyecto" });
 
-  // Determinar si el proyecto es de una instituci&oacute;n o no
-  const esInstitucion = req.body.esInstitucion == "1" ? true : false;
+  let esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
   try {
-    // Actualizar el proyecto en la base de datos
+    const fields = {
+      nombre: req.body.nombre,
+      descripcion: req.body.categoria, // cambiar descripcion por categoria
+      institucion: req.body.institucion,
+      ficha_proyecto: req.body.ficha_proyecto,
+      lider: req.body.lider,
+      objetivo: req.body.objetivo,
+      especificaciones_multimedia: req.body.instrucciones, // instrucciones
+      producto: req.body.producto,
+      es_institucion: esInstitucion,
+      es_privada: req.body.isPrivate !== undefined ? !!req.body.isPrivate : undefined,
+    };
+  
+    const filteredEntries = Object.entries(fields)
+      .filter(([_, value]) => value !== null && value !== undefined);
+  
+    if (filteredEntries.length === 0) {
+      return res.status(400).json({
+        message: 'No hay campos para actualizar',
+      });
+    }
+  
+    const setClause = filteredEntries
+      .map(([key], index) => `${key}=$${index + 1}`)
+      .join(', ');
+  
+    const values = filteredEntries.map(([_, value]) => value);
+    values.push(req.params.id);
+  
+    const query = `
+      UPDATE public.proyectos
+      SET ${setClause}
+      WHERE id=${values.length}
+      RETURNING *
+    `;
+  
     const { rows } = await databasePool.query({
-      text: `UPDATE public.proyectos
-              SET 
-                nombre=$1, 
-                categoria=$2, 
-                institucion=$3, 
-                ficha_proyecto=$4,
-                lider=$5,
-                objetivo=$6,
-                instrucciones=$7,
-                producto=$8,
-                es_institucion=$9,
-                es_privada=$10
-              WHERE id=$11
-              returning *`,
-      values: [
-        req.body.nombre,
-        req.body.categoria,
-        req.body.institucion,
-        req.body.ficha_proyecto,
-        req.body.lider,
-        req.body.objetivo,
-        req.body.instrucciones,
-        req.body.producto,
-        esInstitucion,
-        !!req.body.isPrivate,
-        req.params.id,
-      ]
+      text: query,
+      values,
     });
 
-    // Si se proporcion&oacute; una imagen, eliminar la imagen anterior y actualizar la ruta de la imagen en la base de datos
     const url_first_image = req.file ? req.file.path : null;
     if (url_first_image) {
       if (rows[0].imagen) fs.unlinkSync(rows[0].imagen);
@@ -753,7 +749,6 @@ projectsController.updateProject = async (req, res) => {
       });
     }
 
-    // Devolver la informaci&oacute;n del proyecto actualizado
     return res.status(200).send({
       status: "Proyecto Actualizado",
       proyecto: rows[0]
@@ -906,6 +901,7 @@ projectsController.sharedProjectsUserList = async (req, res) => {
         SELECT *
         FROM public.proyectos_usuarios
         WHERE proyecto_id = $1
+        order by id
       `,
       values: [
         project
