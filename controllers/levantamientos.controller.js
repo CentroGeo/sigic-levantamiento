@@ -521,6 +521,42 @@ levantamientosController.listUser = async (req, res) => {
   }
 };
 
+/**
+ * List the chat of a levantamiento
+ * @swagger
+ * /levantamientos/chat/list:
+ *   get:
+ *     tags: [Levantamientos]
+ *     summary: List the chat of a levantamiento
+ *     description: List the chat of a levantamiento
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del levantamiento
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     description: ID of the message
+ *                   texto:
+ *                     type: string
+ *                     description: Text of the message
+ *                   fecha_hora:
+ *                     type: string
+ *                     description: Date and time of the message
+ *                   usuario_id:
+ *                     type: integer
+ *                     description: ID of the user who sent the message
+ */
 levantamientosController.listChat = async (req, res) => {
   await databasePool
     .query({
