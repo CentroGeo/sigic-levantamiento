@@ -184,6 +184,46 @@ downloadsController.removeUserDownload = async (req, res) => {
 	}
 }
 
+/**
+ * Exporta los levantamientos de un usuario en un archivo Excel
+ * @swagger
+ * /downloads/user/download:
+ *   post:
+ *     tags: [Descargas]
+ *     summary: Exporta los levantamientos de un usuario en un archivo Excel
+ *     description: Exporta los levantamientos de un usuario en un archivo Excel
+ *     parameters:
+ *       - in: body
+ *         name: idLevantamiento
+ *         required: true
+ *         description: ID de la descarga
+ *         schema:
+ *           type: integer
+ *       - in: body
+ *         name: userIDRequester
+ *         required: true
+ *         description: ID del usuario que solicitó la descarga
+ *         schema:
+ *           type: integer
+ *       - in: body
+ *         name: nameFileToExport
+ *         required: true
+ *         description: Nombre del archivo Excel que se va a crear
+ *         schema:
+ *           type: string
+ *       - in: body
+ *         name: descriptionFileToExport
+ *         required: true
+ *         description: Descripción del archivo Excel que se va a crear
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Descarga exportada
+ *       400:
+ *         description: Error al exportar la descarga
+ * 
+ */
 downloadsController.userDownloadRegisters = async (req, res) => {
 	console.log("exportLevantamientos")
 	try {
@@ -796,19 +836,6 @@ downloadsController.updateStatusReviewer = async (req, res) => {
  *     tags: [Descargas]
  *     summary: Obtiene las descargas de un usuario
  *     description: Obtiene las descargas de un usuario
- *     parameters:
- *       - in: query
- *         name: project_id
- *         required: true
- *         description: ID del proyecto
- *       - in: query
- *         name: user_id
- *         required: true
- *         description: ID del usuario
- *       - in: query
- *         name: project_name
- *         required: true
- *         description: Nombre del proyecto
  *     requestBody:
  *       required: true
  *       content:
@@ -820,11 +847,14 @@ downloadsController.updateStatusReviewer = async (req, res) => {
  *                 type: integer
  *                 description: ID del proyecto
  *               user_id:
- *                 type: integer
+ *                 type: string
  *                 description: ID del usuario
  *               project_name:
  *                 type: string
  *                 description: Nombre del proyecto
+ *               descriptionFileToExport:
+ *                 type: string
+ *                 description: Descripci&oacute;n del archivo
  *     responses:
  *       200:
  *         description: Descargas obtenidas
@@ -845,7 +875,7 @@ downloadsController.listOwnerDownloads = async (req, res) => {
 
 		let statusLev = "NO REVISADO"
 		let idUsuario = req.body.user_id
-		let nombreArchivo = req.body.nameFileToExport
+		let nombreArchivo = req.body.project_name
 		let descripcionArchivo = req.body.descriptionFileToExport
 		let idProyecto = req.body.project_id
 		let filepath = ""
