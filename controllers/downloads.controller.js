@@ -836,19 +836,6 @@ downloadsController.updateStatusReviewer = async (req, res) => {
  *     tags: [Descargas]
  *     summary: Obtiene las descargas de un usuario
  *     description: Obtiene las descargas de un usuario
- *     parameters:
- *       - in: query
- *         name: project_id
- *         required: true
- *         description: ID del proyecto
- *       - in: query
- *         name: user_id
- *         required: true
- *         description: ID del usuario
- *       - in: query
- *         name: project_name
- *         required: true
- *         description: Nombre del proyecto
  *     requestBody:
  *       required: true
  *       content:
@@ -865,6 +852,9 @@ downloadsController.updateStatusReviewer = async (req, res) => {
  *               project_name:
  *                 type: string
  *                 description: Nombre del proyecto
+ *               descriptionFileToExport:
+ *                 type: string
+ *                 description: Descripci&oacute;n del archivo
  *     responses:
  *       200:
  *         description: Descargas obtenidas
@@ -885,7 +875,7 @@ downloadsController.listOwnerDownloads = async (req, res) => {
 
 		let statusLev = "NO REVISADO"
 		let idUsuario = req.body.user_id
-		let nombreArchivo = req.body.nameFileToExport
+		let nombreArchivo = req.body.project_name
 		let descripcionArchivo = req.body.descriptionFileToExport
 		let idProyecto = req.body.project_id
 		let filepath = ""
