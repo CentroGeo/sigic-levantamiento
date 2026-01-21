@@ -555,7 +555,7 @@ projectsController.createProject = async (req, res) => {
   try {
     const fields = {
       nombre: req.body.nombre,
-      descripcion: req.body.categoria,
+      categoria: req.body.categoria,
       institucion: req.body.institucion,
       imagen: url_first_image,
       activo: false,
@@ -565,7 +565,7 @@ projectsController.createProject = async (req, res) => {
       status: "SIN EVALUAR",
       lider: req.body.lider,
       objetivo: req.body.objetivo,
-      especificaciones_multimedia: req.body.instrucciones,
+      instrucciones: req.body.instrucciones,
       producto: req.body.producto,
       es_institucion: esInstitucion,
       es_privada: true,
@@ -698,12 +698,12 @@ projectsController.updateProject = async (req, res) => {
   try {
     const fields = {
       nombre: req.body.nombre,
-      descripcion: req.body.categoria, // cambiar descripcion por categoria
+      categoria: req.body.categoria, // cambiar descripcion por categoria
       institucion: req.body.institucion,
       ficha_proyecto: req.body.ficha_proyecto,
       lider: req.body.lider,
       objetivo: req.body.objetivo,
-      especificaciones_multimedia: req.body.instrucciones, // instrucciones
+      instrucciones: req.body.instrucciones, // instrucciones
       producto: req.body.producto,
       es_institucion: esInstitucion,
       es_privada: req.body.isPrivate !== undefined ? !!req.body.isPrivate : undefined,
