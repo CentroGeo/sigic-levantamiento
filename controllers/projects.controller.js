@@ -690,9 +690,6 @@ projectsController.createProject = async (req, res) => {
  */
 projectsController.updateProject = async (req, res) => {
   console.log("update project");
-  if (!req.body.nombre)
-    return res.status(400).send({ message: "Falta el nombre del proyecto" });
-
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
   try {
