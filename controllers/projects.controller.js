@@ -728,7 +728,7 @@ projectsController.updateProject = async (req, res) => {
     const query = `
       UPDATE public.proyectos
       SET ${setClause}
-      WHERE id=${values.length}
+      WHERE id=$${values.length}
       RETURNING *
     `;
   
