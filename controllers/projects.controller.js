@@ -697,7 +697,7 @@ projectsController.updateProject = async (req, res) => {
       nombre: req.body.nombre,
       categoria: req.body.categoria, // cambiar descripcion por categoria
       institucion: req.body.institucion,
-      ficha_proyecto: req.body.ficha_proyecto,
+      ficha_proyecto:  JSON.stringify(req.body.ficha_proyecto),
       lider: req.body.lider,
       objetivo: req.body.objetivo,
       instrucciones: req.body.instrucciones, // instrucciones
@@ -714,13 +714,14 @@ projectsController.updateProject = async (req, res) => {
         message: 'No hay campos para actualizar',
       });
     }
-  
+    
     const setClause = filteredEntries
-      .map(([key], index) => `${key}=$${index + 1}`)
+      .map(([key], index) => `${key==='ficha_proyecto'?`${key}=$${index + 1}::jsonb`:`${key}=$${index + 1}`}`)
       .join(', ');
-  
+    
     const values = filteredEntries.map(([_, value]) => value);
     values.push(req.params.id);
+
   
     const query = `
       UPDATE public.proyectos
@@ -728,6 +729,8 @@ projectsController.updateProject = async (req, res) => {
       WHERE id=$${values.length}
       RETURNING *
     `;
+
+    console.log(query, values)
   
     const { rows } = await databasePool.query({
       text: query,
