@@ -15,11 +15,6 @@ const downloadsController = {};
  *     tags: [Descargas]
  *     summary: Obtiene la lista de descargas de un usuario
  *     description: Obtiene la lista de descargas de un usuario
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: ID del usuario
  *     requestBody:
  *       required: true
  *       content:	
@@ -36,6 +31,9 @@ const downloadsController = {};
  *               limit:
  *                 type: integer
  *                 description: L mite de descargas por p gina
+ *               status:
+ *                 type: string
+ *                 description: Estado de la descarga
  *     responses:
  *       200:
  *         description: OK
@@ -84,17 +82,14 @@ downloadsController.listUserDownload = async (req, res) => {
 		const limit = 12;
 		const offset = (page - 1) * limit;
 
-		const { rows } = await databasePool.query({
-			text: `
-				SELECT
-					l.*
-				FROM public.descargas as l
-				WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
-				LIMIT  $1
-				OFFSET $2
-			`,
-			values: [limit, offset]
-		});
+		const listQuery = `
+			SELECT
+				l.*
+			FROM public.descargas as l
+			WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
+			LIMIT  $1
+			OFFSET $2
+		`;
 
 		const countQuery = `
 			SELECT COUNT(*) AS total
@@ -103,7 +98,7 @@ downloadsController.listUserDownload = async (req, res) => {
 		`;
 
 		const [{ rows: downloads }, { rows: countRows }] = await Promise.all([
-			databasePool.query({ text: query, values: [limit, offset] }),
+			databasePool.query({ text: listQuery, values: [limit, offset] }),
 			databasePool.query(countQuery)
 		]);
 
@@ -121,6 +116,7 @@ downloadsController.listUserDownload = async (req, res) => {
 		});
 	} catch (error) {
 		// En caso de error, devuelve un mensaje de error
+		console.log(error);
 		return res.status(400).send({ message: error.message });
 	}
 }
