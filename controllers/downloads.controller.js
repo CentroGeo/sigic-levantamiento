@@ -765,7 +765,7 @@ downloadsController.listReviewer = async (req, res) => {
  *                 type: string
  *                 description: Reporte del curador
  *               user_id:
- *                 type: integer
+ *                 type: string
  *                 description: ID del curador
  *     responses:
  *       200:
