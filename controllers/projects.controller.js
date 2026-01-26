@@ -806,11 +806,6 @@ projectsController.deactivateProject = async (req, res) => {
   if (!req.body.user_id)
     return res.status(400).send({ message: "Falta el email del usuario" });
 
-  if (!req.body.activo)
-    return res
-      .status(400)
-      .send({ message: "Falta el status para activar o desactivar" });
-
   // id_desactivado_por: es el id de quien hizo el  ltimo cambio de estado (activado o desactivado) del proyecto
   // fecha_desactivacion: es la fecha del  ltimo cambio de estado (activado o desactivado) del proyecto
  
@@ -827,7 +822,7 @@ projectsController.deactivateProject = async (req, res) => {
       values: [
         new Date(), 
         req.body.user_id, 
-        req.body.activo, 
+        false, 
         req.params.id
       ]
     });
