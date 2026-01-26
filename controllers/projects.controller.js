@@ -88,7 +88,7 @@ projectsController.publicProjects = async (req, res) => {
         count(l2.id) as num_aportaciones
       FROM public.proyectos as l
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
-      WHERE l.es_privada = false
+      WHERE l.es_privada = false and l.activo=true
       GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $1
@@ -216,7 +216,7 @@ projectsController.ownprojects = async (req, res) => {
       FROM public.proyectos AS l
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE 
-        l.id_propietario = '${userEmail}'
+        l.id_propietario = '${userEmail}' and l.activo=true
       GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $1
@@ -351,6 +351,7 @@ projectsController.sharedProjects = async (req, res) => {
       WHERE 
         pu.correo = '${userEmail}'
         AND pu.rol IN ('administrar', 'revisar', 'aporta', 'ver')
+        AND l.activo=true
       GROUP BY l.id, pu.rol
       ORDER BY l.id DESC
       LIMIT  $1
@@ -558,7 +559,7 @@ projectsController.createProject = async (req, res) => {
       categoria: req.body.categoria,
       institucion: req.body.institucion,
       imagen: url_first_image,
-      activo: false,
+      activo: true,
       id_propietario: req.body.id_propietario,
       fecha_creacion: new Date(),
       ficha_proyecto: req.body.ficha_proyecto,
