@@ -9,6 +9,9 @@ services:
       - PG_HOST=db
     depends_on:
       - db
+    volumes:
+      - app_uploads:/usr/src/app/uploads
+      - app_downloads:/usr/src/app/downloads
     restart: always
 
   db:
@@ -25,3 +28,5 @@ services:
 
 volumes:
   postgres_data:
+  app_uploads:
+  app_downloads:
