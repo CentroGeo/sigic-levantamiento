@@ -4,7 +4,7 @@ const router = express.Router();
 const notificationController = require('../controllers/notification.controller');
 
 //Api para obtener si el usuario es revisor
-router.get('/user/rol', notificationController.getRolUser);
+router.post('/user/rol', notificationController.getRolUser);
 
 //Api para notitificaciones de projectos
 router.post("/projects/owner", notificationController.projectsOwnershipNotification);
