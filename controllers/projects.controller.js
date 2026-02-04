@@ -522,7 +522,7 @@ projectsController.getRegisterProject = async (req, res) => {
  *               esInstitucion:
  *                 type: string
  *                 enum: ["0", "1"]
- *                 description: "1" si es proyecto institucional, "0" si no lo es.
+ *                 description: Indica si el proyecto es de una instituci&oacute;n
  *     responses:
  *       200:
  *         description: OK
