@@ -54,8 +54,9 @@ notificationController.getRolUser = async (req, res) => {
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       WHERE 
-        pu.correo = '${userEmail}'
-        AND pu.rol IN ('administrar', 'revisar')
+        (pu.correo = '${userEmail}'
+        AND pu.rol IN ('administrar', 'revisar'))
+        or l.id_propietario = '${userEmail}'
     `;
 
     const { rows } = await databasePool.query({

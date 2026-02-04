@@ -697,8 +697,10 @@ downloadsController.listReviewer = async (req, res) => {
 			SELECT 
 				l.*
 			FROM public.descargas as l
+			inner join proyectos p on p.id = l.id_proyecto
 			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-			WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+			WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`})
+					or p.id_propietario = '${req.body.email}'
 			LIMIT  $1
 			OFFSET $2
 		`
@@ -706,8 +708,10 @@ downloadsController.listReviewer = async (req, res) => {
 		const countQuery = `
 			SELECT COUNT(*) AS total
 			FROM public.descargas as l
+			inner join proyectos p on p.id = l.id_proyecto
 			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-			WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+			WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`})
+				  or p.id_propietario = '${req.body.email}'
 		`;
 
 		const [{ rows: descargas }, { rows: countRows }] = await Promise.all([

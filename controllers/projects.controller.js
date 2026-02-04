@@ -122,7 +122,7 @@ projectsController.publicProjects = async (req, res) => {
   } catch (error) {
     return res.status(400).send({ message: error.message });
   }
-  
+
 };
 
 /**
@@ -371,7 +371,7 @@ projectsController.sharedProjects = async (req, res) => {
       databasePool.query({ text: query, values: [limit, offset] }),
       databasePool.query(countQuery)
     ]);
-    
+
     const total = parseInt(countRows[0].total, 12);
     const totalPages = Math.ceil(total / limit)
 
@@ -451,7 +451,7 @@ projectsController.getRegisterProject = async (req, res) => {
   try {
     const userEmail = req.body.email;
     const id = req.params.id;
-    
+
     const query = `
       SELECT l.*,
         l.region as ruta,
@@ -462,8 +462,8 @@ projectsController.getRegisterProject = async (req, res) => {
       ORDER BY l.id DESC
     `;
 
-    const { rows } = await databasePool.query({ text: query});
-    
+    const { rows } = await databasePool.query({ text: query });
+
     return res.status(200).send({
       proyectos: rows
     });
@@ -480,11 +480,11 @@ projectsController.getRegisterProject = async (req, res) => {
  *   post:
  *     tags: [Proyectos]
  *     summary: Crear un nuevo proyecto
- *     description: Crear un nuevo proyecto
+ *     description: Crear un nuevo proyecto con soporte para subida de imagen
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -493,25 +493,20 @@ projectsController.getRegisterProject = async (req, res) => {
  *                 description: Nombre del proyecto
  *               categoria:
  *                 type: string
- *                 description: Categor&iacute del proyecto
+ *                 description: Categor&iacute;a del proyecto
  *               institucion:
  *                 type: string
  *                 description: Instituci&oacute;n del proyecto
- *               imagen:
+ *               file:
  *                 type: string
- *                 description: URL de la imagen principal del proyecto
+ *                 format: binary
+ *                 description: Imagen principal del proyecto
  *               id_propietario:
  *                 type: string
- *                 description: ID del propietario del proyecto
- *               fecha_creacion:
- *                 type: string
- *                 description: Fecha de creaci&oacute;n del proyecto
+ *                 description: ID (email) del propietario del proyecto
  *               ficha_proyecto:
  *                 type: string
- *                 description: Ficha del proyecto
- *               status:
- *                 type: string
- *                 description: Estado del proyecto
+ *                 description: JSON string con la estructura de la ficha/cuestionario
  *               lider:
  *                 type: string
  *                 description: Lider del proyecto
@@ -523,13 +518,11 @@ projectsController.getRegisterProject = async (req, res) => {
  *                 description: Instrucciones del proyecto
  *               producto:
  *                 type: string
- *                 description: Producto del proyecto
- *               es_institucion:
- *                 type: boolean
- *                 description: Indica si el proyecto es de una instituci&oacute;n
- *               es_privada:
- *                 type: boolean
- *                 description: Indica si el proyecto es privado
+ *                 description: Producto esperado del proyecto
+ *               esInstitucion:
+ *                 type: string
+ *                 enum: ["0", "1"]
+ *                 description: "1" si es proyecto institucional, "0" si no lo es.
  *     responses:
  *       200:
  *         description: OK
@@ -546,13 +539,13 @@ projectsController.getRegisterProject = async (req, res) => {
  *                   description: Proyecto creado
  */
 projectsController.createProject = async (req, res) => {
-  
+
   if (!req.body.nombre)
     return res.status(400).send({ message: "Falta el nombre del proyecto" });
 
   const url_first_image = req.file ? req.file.path : null;
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
-  
+
   try {
     const fields = {
       nombre: req.body.nombre,
@@ -698,7 +691,7 @@ projectsController.updateProject = async (req, res) => {
       nombre: req.body.nombre,
       categoria: req.body.categoria, // cambiar descripcion por categoria
       institucion: req.body.institucion,
-      ficha_proyecto:  JSON.stringify(req.body.ficha_proyecto),
+      ficha_proyecto: JSON.stringify(req.body.ficha_proyecto),
       lider: req.body.lider,
       objetivo: req.body.objetivo,
       instrucciones: req.body.instrucciones, // instrucciones
@@ -706,24 +699,24 @@ projectsController.updateProject = async (req, res) => {
       es_institucion: esInstitucion,
       es_privada: req.body.isPrivate !== undefined ? !!req.body.isPrivate : undefined,
     };
-  
+
     const filteredEntries = Object.entries(fields)
       .filter(([_, value]) => value !== null && value !== undefined);
-  
+
     if (filteredEntries.length === 0) {
       return res.status(400).json({
         message: 'No hay campos para actualizar',
       });
     }
-    
+
     const setClause = filteredEntries
-      .map(([key], index) => `${key==='ficha_proyecto'?`${key}=$${index + 1}::jsonb`:`${key}=$${index + 1}`}`)
+      .map(([key], index) => `${key === 'ficha_proyecto' ? `${key}=$${index + 1}::jsonb` : `${key}=$${index + 1}`}`)
       .join(', ');
-    
+
     const values = filteredEntries.map(([_, value]) => value);
     values.push(req.params.id);
 
-  
+
     const query = `
       UPDATE public.proyectos
       SET ${setClause}
@@ -732,7 +725,7 @@ projectsController.updateProject = async (req, res) => {
     `;
 
     console.log(query, values)
-  
+
     const { rows } = await databasePool.query({
       text: query,
       values,
@@ -809,7 +802,7 @@ projectsController.deactivateProject = async (req, res) => {
 
   // id_desactivado_por: es el id de quien hizo el  ltimo cambio de estado (activado o desactivado) del proyecto
   // fecha_desactivacion: es la fecha del  ltimo cambio de estado (activado o desactivado) del proyecto
- 
+
   try {
     await databasePool.query({
       text: `
@@ -821,9 +814,9 @@ projectsController.deactivateProject = async (req, res) => {
         WHERE id=$4
       `,
       values: [
-        new Date(), 
-        req.body.user_id, 
-        false, 
+        new Date(),
+        req.body.user_id,
+        false,
         req.params.id
       ]
     });
@@ -1285,7 +1278,7 @@ projectsController.reviewerProjects = async (req, res) => {
       databasePool.query({ text: query, values: [status, limit, offset] }),
       databasePool.query({ text: query, values: [status] })
     ]);
-    
+
     const total = parseInt(countRows[0].total, 12);
     const totalPages = Math.ceil(total / limit)
 
@@ -1348,7 +1341,7 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
       return res.status(400).send({ message: "Reporte faltante" });
     if (!req.body.user_id)
       return res.status(400).send({ message: "ID faltante" });
-  
+
     const updateSql = {
       text: `
 				UPDATE public.proyectos

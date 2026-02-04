@@ -20,6 +20,93 @@ const levantamientosController = {};
 
 /*********** Sección API levantamientos  **********/
 
+/**
+ * @swagger
+ * /levantamientos/save:
+ *   post:
+ *     tags: [Levantamientos]
+ *     summary: Crear un nuevo levantamiento
+ *     description: Guarda la informaci&oacute;n de un levantamiento, incluyendo respuestas a cuestionarios y ubicaci&oacute;n.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id_usuario:
+ *                 type: string
+ *                 description: ID (email) del usuario
+ *               titulo:
+ *                 type: string
+ *                 description: T&iacute;tulo o nombre del levantamiento
+ *               fecha_levantamiento:
+ *                 type: string
+ *                 description: Fecha y hora del levantamiento (soporta formato 12/24h)
+ *               fuente:
+ *                 type: string
+ *                 enum: ["web", "app"]
+ *                 description: Origen del levantamiento
+ *               latitud:
+ *                 type: number
+ *                 description: Coordenada de latitud
+ *               longitud:
+ *                 type: number
+ *                 description: Coordenada de longitud
+ *               id_proyecto:
+ *                 type: integer
+ *                 description: ID del proyecto al que pertenece
+ *               respuestas:
+ *                 type: object
+ *                 description: Objeto con las respuestas del cuestionario (clave-valor din&aacute;mico)
+ *               datos_usuario:
+ *                 type: string
+ *                 description: Datos adicionales del usuario en formato texto/JSON
+ *               ubicacion_sensible:
+ *                 type: boolean
+ *                 description: Indica si la ubicaci&oacute;n es sensible
+ *               estado:
+ *                 type: string
+ *                 description: Estado geogr&aacute;fico (calculado autom&aacute;ticamente si no se env&iacute;a, pero puede forzarse)
+ *               municipio:
+ *                 type: string
+ *                 description: Municipio (calculado autom&aacute;ticamente)
+ *               localidad:
+ *                 type: string
+ *                 description: Localidad (calculada autom&aacute;ticamente)
+ *               isFromGallery:
+ *                 type: boolean
+ *                 description: Indica si se cre&oacute; desde galer&iacute;a
+ *               in_situ:
+ *                 type: boolean
+ *                 description: Indica si se tom&oacute; en el sitio
+ *               ocultar_ficha:
+ *                 type: boolean
+ *                 description: Bandera para ocultar la ficha
+ *               datos_institucion:
+ *                 type: object
+ *                 properties:
+ *                   entidad_cvegeo:
+ *                      type: string
+ *                   entidad_nombre:
+ *                      type: string
+ *                   institucion_nombre:
+ *                      type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 levantamiento_id:
+ *                   type: integer
+ */
 levantamientosController.create = async (req, res) => {
 
   console.log("***********************");
@@ -150,7 +237,7 @@ levantamientosController.create = async (req, res) => {
         ).format("DD/MM/YYYY, HH:mm:ss");
 
         let dateLevan = new Date(fecha_levantamiento);
-        
+
         if (fecha_levantamiento == "Fecha inválida") {
           fecha_levantamiento = new Date();
         }
@@ -372,6 +459,43 @@ levantamientosController.getRegister = async (req, res) => {
   }
 };
 
+/**
+ * @swagger
+ * /levantamientos/getRegisterV2:
+ *   post:
+ *     tags: [Levantamientos]
+ *     summary: Obtener detalle de levantamiento (V2)
+ *     description: Recupera las respuestas y metadatos de un levantamiento espec&iacute;fico.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id_levantamiento:
+ *                 type: integer
+ *                 description: ID del levantamiento a consultar
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 answers:
+ *                   type: array
+ *                   description: Lista de respuestas del levantamiento
+ *                   items:
+ *                      type: object
+ *                 path_media_folder:
+ *                   type: string
+ *                   description: Ruta de la carpeta de medios
+ *                 title:
+ *                   type: string
+ *                   description: Nombre del levantamiento
+ */
 levantamientosController.getRegisterV2 = async (req, res) => {
   try {
     const { rows } = await databasePool.query({
@@ -397,8 +521,8 @@ levantamientosController.getRegisterV2 = async (req, res) => {
     return res.status(200).send({
       //answers: rows[0]["respuestas_ficha"]
       answers: respuestas,
-      path_media_folder: rows.length > 0 ? rows[0].path_media_folder : null, 
-      title: rows.length > 0 ? rows[0].nombre: null
+      path_media_folder: rows.length > 0 ? rows[0].path_media_folder : null,
+      title: rows.length > 0 ? rows[0].nombre : null
     });
   } catch (error) {
     console.log(error);
@@ -474,10 +598,10 @@ levantamientosController.listUser = async (req, res) => {
     const page = parseInt(req.query.page, 12) || 1;
     const limit = 12;
     const offset = (page - 1) * limit;
-    
+
     if (!req.body.email)
       return res.status(400).send({ message: "Correo electr nico faltante" });
-  
+
     let query = `
       SELECT 
         l.*, l.nombre as title, media_array as path_media_folder
@@ -492,7 +616,7 @@ levantamientosController.listUser = async (req, res) => {
       FROM levantamientos l
       WHERE l.usuario_id = '${req.body.email}' and l.status = '${req.body.status}'
     `;
-    
+
     const [{ rows: levantamientos }, { rows: countRows }] = await Promise.all([
       databasePool.query({ text: query, values: [limit, offset] }),
       databasePool.query(countQuery)
@@ -635,9 +759,9 @@ levantamientosController.chatReviewer = async (req, res) => {
         values($1, $2, $3, $4)
       `,
       values: [
-        req.params.id, 
-        new Date(), 
-        req.body.report, 
+        req.params.id,
+        new Date(),
+        req.body.report,
         req.body.user_id
       ]
     });
@@ -651,8 +775,8 @@ levantamientosController.chatReviewer = async (req, res) => {
         WHERE id=$3 returning *
       `,
       values: [
-        req.body.user_id, 
-        new Date(), 
+        req.body.user_id,
+        new Date(),
         req.params.id
       ]
     };
@@ -822,16 +946,18 @@ levantamientosController.listReviewer = async (req, res) => {
     const page = parseInt(req.query.page, 12) || 1;
     const limit = 12;
     const offset = (page - 1) * limit;
-    
+
     if (!req.body.email)
       return res.status(400).send({ message: "Correo electrónico faltante" });
-  
+
     const query = `
       SELECT 
         l.*, l.nombre as title, media_array as path_media_folder
       FROM levantamientos l
+      inner join proyectos p on p.id = l.id_proyecto
       INNER join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-      WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+      WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)` : `l.id_curador = '${req.body.email}'`})
+            or p.id_propietario = '${req.body.email}'
       LIMIT  $1
       OFFSET $2
     `;
@@ -839,8 +965,10 @@ levantamientosController.listReviewer = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM levantamientos l
+      inner join proyectos p on p.id = l.id_proyecto
       inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-      WHERE (pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`}
+      WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)` : `l.id_curador = '${req.body.email}'`})
+            or p.id_propietario = '${req.body.email}'
     `;
 
     const [{ rows: levantamientos }, { rows: countRows }] = await Promise.all([
