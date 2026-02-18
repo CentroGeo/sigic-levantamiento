@@ -39,7 +39,7 @@ app.use(express.json({limit:'500mb'}));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api/schema/swagger-ui/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/uploads', express.static('uploads'));
 app.use('/downloads', express.static('downloads'));
