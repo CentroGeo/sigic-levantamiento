@@ -11,7 +11,9 @@ const filer = new Filer("levantamientos");
 //Apis para las creación, edicion y eliminación de levantamientos
 router.post("/user/list", levantamientosController.listUser);
 
-router.post("/user/create", levantamientosController.create);
+//router.post("/user/create", levantamientosController.create);
+router.post("/user/create", filer.arrayUpload("media", 10), levantamientosController.createLevantamiento);
+
 router.post('/user/register/v2', levantamientosController.getRegisterV2);
 //router.post('/user/register', levantamientosController.getRegister);
 //router.post("/user/update", auth.verifyToken, levantamientosController.update);

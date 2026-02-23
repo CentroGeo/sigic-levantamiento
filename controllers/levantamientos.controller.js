@@ -346,7 +346,241 @@ levantamientosController.create = async (req, res) => {
     });
 
     let levantamiento_id;
-    
+
+    if (rows[0]) {
+      console.log("se guardo");
+      levantamiento_id = rows[0].id;
+
+      return res.status(200).send({
+        levantamiento_id: levantamiento_id,
+        status: "ok",
+        message: "Levantamiento guardado"
+      });
+    }
+  } catch (error) {
+    console.log("Hubo un error al guardar el levantamiento:");
+    console.log(error);
+    return res.status(400).send({
+      status: "Error",
+      message: error.message,
+      error: error
+    });
+  }
+};
+
+
+
+/**
+ * @swagger
+ * /levantamientos/user/create:
+ *   post:
+ *     tags: [Levantamientos]
+ *     summary: Crear un nuevo levantamiento
+ *     description: Guarda la informaci&oacute;n de un levantamiento, incluyendo respuestas a cuestionarios y ubicaci&oacute;n.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id_usuario:
+ *                 type: string
+ *                 description: ID (email) del usuario
+ *               titulo:
+ *                 type: string
+ *                 description: T&iacute;tulo o nombre del levantamiento
+ *               fecha_levantamiento:
+ *                 type: string
+ *                 description: Fecha y hora del levantamiento (soporta formato 12/24h)
+ *               fuente:
+ *                 type: string
+ *                 enum: ["web", "app"]
+ *                 description: Origen del levantamiento
+ *               latitud:
+ *                 type: number
+ *                 description: Coordenada de latitud
+ *               longitud:
+ *                 type: number
+ *                 description: Coordenada de longitud
+ *               id_proyecto:
+ *                 type: integer
+ *                 description: ID del proyecto al que pertenece
+ *               respuestas:
+ *                 type: object
+ *                 description: Objeto con las respuestas del cuestionario (clave-valor din&aacute;mico)
+ *               datos_usuario:
+ *                 type: string
+ *                 description: Datos adicionales del usuario en formato texto/JSON
+ *               ubicacion_sensible:
+ *                 type: boolean
+ *                 description: Indica si la ubicaci&oacute;n es sensible
+ *               estado:
+ *                 type: string
+ *                 description: Estado geogr&aacute;fico (calculado autom&aacute;ticamente si no se env&iacute;a, pero puede forzarse)
+ *               municipio:
+ *                 type: string
+ *                 description: Municipio (calculado autom&aacute;ticamente)
+ *               localidad:
+ *                 type: string
+ *                 description: Localidad (calculada autom&aacute;ticamente)
+ *               isFromGallery:
+ *                 type: boolean
+ *                 description: Indica si se cre&oacute; desde galer&iacute;a
+ *               in_situ:
+ *                 type: boolean
+ *                 description: Indica si se tom&oacute; en el sitio
+ *               ocultar_ficha:
+ *                 type: boolean
+ *                 description: Bandera para ocultar la ficha
+ *               datos_institucion:
+ *                 type: object
+ *                 properties:
+ *                   entidad_cvegeo:
+ *                      type: string
+ *                   entidad_nombre:
+ *                      type: string
+ *                   institucion_nombre:
+ *                      type: string
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 levantamiento_id:
+ *                   type: integer
+ */
+levantamientosController.createLevantamiento = async (req, res) => {
+
+  console.log("***********************");
+  console.log("crear levantamiento");
+  console.log(req.body);
+  let sql_insert = "";
+  let json_respuestas = null;
+  let array_multimedia = [];
+  let isFromGallery = false; //por default
+  let in_situ = true; //por default
+
+  try {
+    isFromGallery = true;
+    in_situ = false;
+    // if (req.body.fuente == "web") {
+    //   //si se mandó el id de proyecto (es opcional)
+    //   in_situ = false;
+    // } else {
+    //   //viene de app
+    //   console.log("viene de app");
+    //   if (req.body.isFromGallery != null) {
+    //     //si se mandó el id de proyecto (es opcional)
+    //     isFromGallery = req.body.isFromGallery;
+    //   }
+
+    //   if (req.body.in_situ != null) {
+    //     //si se mandó el id de proyecto (es opcional)
+    //     in_situ = req.body.in_situ;
+    //   }
+    // }
+
+    let tiene_ficha = req.body.respuestas ? true : false;
+    json_respuestas = req.body.respuestas;
+
+    let estado = "";
+    let municipio = "";
+    let localidad = "";
+    let fecha_levantamiento = new Date();
+    let default_status = req.body.status || "NO REVISADO";
+
+    console.log("REQ BODY", req.body)
+    const { rows } = await databasePool.query({
+      text: `INSERT INTO public.levantamientos(
+                usuario_id, 
+                nombre,
+                fecha_levantamiento, 
+                fecha_guardado,
+                fuente, 
+                latitud, 
+                longitud, 
+                status, 
+                tiene_ficha, 
+                geom, 
+                id_proyecto, 
+                respuestas_ficha,
+                datos_usuario, 
+                media_array, 
+                ubicacion_sensible, 
+                estado, 
+                municipio, 
+                localidad, 
+                isfromgallery, 
+                insitu, 
+                ocultar_ficha, 
+                entidad_cvegeo, 
+                entidad_nombre, 
+                institucion_nombre
+              )
+                VALUES(
+                  $1, 
+                  $2, 
+                  $3, 
+                  $4, 
+                  $5, 
+                  $6,
+                  $7,
+                  $8, 
+                  $9, 
+                  ST_SetSRID(ST_MakePoint($7, $6), 4326), 
+                  $10, 
+                  $11,
+                  $12, 
+                  $13, 
+                  $14, 
+                  $15, 
+                  $16, 
+                  $17, 
+                  $18, 
+                  $19, 
+                  $20, 
+                  $21, 
+                  $22, 
+                  $23
+                )
+                returning *`,
+      values: [
+        req.body.id_usuario,
+        req.body.titulo,
+        fecha_levantamiento,
+        new Date(),
+        req.body.fuente,
+        req.body.latitud,
+        req.body.longitud,
+        default_status,
+        tiene_ficha,
+        req.body.id_proyecto,
+        json_respuestas,
+        req.body.datos_usuario,
+        JSON.stringify([]),
+        req.body.ubicacion_sensible,
+        estado,
+        municipio,
+        localidad,
+        isFromGallery,
+        in_situ,
+        req.body.ocultar_ficha,
+        req.body.datos_institucion?.entidad_cvegeo,
+        req.body.datos_institucion?.entidad_nombre,
+        req.body.datos_institucion?.institucion_nombre
+      ]
+    });
+
+    let levantamiento_id;
+
     if (rows[0]) {
       console.log("se guardo");
       levantamiento_id = rows[0].id;
