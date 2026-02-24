@@ -8,6 +8,7 @@ const path = require("path");
 const exif = require("exiftool");
 const appRoot = require("app-root-path");
 const im = require("imagemagick");
+const Mailer = require("../helpers/Mailer");
 
 const projectsController = {};
 
@@ -990,6 +991,16 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
       ]
     });
 
+    try {
+      const mailer = new Mailer();
+  
+      mailer.templateGuestUser();
+      await mailer.send("Invitación a participar ", req.body.email);
+    } catch (error) {
+      console.log(error)
+    }
+
+
     // Regresa el usuario insertado
     return res.status(200).send({
       status: "Usuario guardado",
@@ -998,6 +1009,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
 
   } catch (error) {
     // Regresa un error en caso de que algo salga mal
+    console.log(error)
     return res.status(400).send({ message: error.message });
   }
 };
