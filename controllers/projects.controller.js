@@ -1265,10 +1265,7 @@ projectsController.reviewerProjects = async (req, res) => {
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
-      WHERE 
-        pu.correo = '${userEmail}'
-        AND pu.rol IN ('administrar', 'revisar')
-        AND pu.status = $1
+      WHERE pu.status = $1
       GROUP BY l.id, pu.rol
       ORDER BY l.id DESC
       LIMIT  $2
@@ -1280,10 +1277,7 @@ projectsController.reviewerProjects = async (req, res) => {
       SELECT COUNT(*) AS total
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
-      WHERE 
-        pu.correo = '${userEmail}'
-        AND pu.rol IN ('administrar', 'revisar', 'aporta', 'ver')
-        AND pu.status = $1
+      WHERE pu.status = $1
     `;
 
     const [{ rows: proyectos }, { rows: countRows }] = await Promise.all([
