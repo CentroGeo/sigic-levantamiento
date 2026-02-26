@@ -1343,26 +1343,47 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
     // Actualiza el estado de notificado de un levantamiento
     if (!req.body.status)
       return res.status(400).send({ message: "Estado faltante" });
-    if (!req.body.report)
-      return res.status(400).send({ message: "Reporte faltante" });
-    if (!req.body.user_id)
-      return res.status(400).send({ message: "ID faltante" });
+    // if (!req.body.report)
+    //   return res.status(400).send({ message: "Reporte faltante" });
+    // if (!req.body.user_id)
+    //   return res.status(400).send({ message: "ID faltante" });
+    
+    values = [];
+    fields = [];
+    let index = 1;
 
+    values.push(req.body.status)
+    fields.push(`status = $${index++}`)
+
+    if(req.body.user_id){
+      values.push(req.body.user_id)
+      fields.push(`id_curador = $${index++}`)
+
+      values.push(new Date())
+      fields.push(`fecha_aceptacion = $${index++}`)
+    }
+
+    if(req.body.report){
+      values.push(req.body.report)
+      fields.push(`comentario_curador = $${index++}`)
+    }
+    
+
+    if(req.body.es_notificado){
+      values.push(req.body.es_notificado)
+      fields.push(`es_notificado = $${index++}`)
+    }
+
+    values.push(req.params.id)
+
+    query = `
+      UPDATE public.proyectos
+      SET ${fields.join(", ")}
+      WHERE id = $${index}
+    `
     const updateSql = {
-      text: `
-				UPDATE public.proyectos
-				SET status=$1, id_curador=$2, fecha_aceptacion=$3, comentario_curador=$4, es_notificado=true
-				${req.body.status == "EN REVISIÓN" ? ", en_pausa=true" : ""}
-				${req.body.status == "APROBADO" ? ", activo=true" : ""}
-				WHERE id=$5 returning *
-			`,
-      values: [
-        req.body.status,
-        req.body.user_id,
-        new Date(),
-        req.body.report,
-        req.params.id
-      ]
+      text: query,
+      values: values
     };
 
     // Ejecuta la consulta de actualizaci n
