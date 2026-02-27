@@ -1262,10 +1262,9 @@ projectsController.reviewerProjects = async (req, res) => {
             l.es_institucion,
             count(l2.id) as num_aportaciones
       FROM public.proyectos AS l
-      INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE l.status = $1
-      GROUP BY l.id, pu.rol
+      GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $2
       OFFSET $3
@@ -1275,7 +1274,6 @@ projectsController.reviewerProjects = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM public.proyectos AS l
-      INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       WHERE l.status = $1
     `;
 
