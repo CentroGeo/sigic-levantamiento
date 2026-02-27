@@ -21,6 +21,7 @@ router.post('/user/register/v2', levantamientosController.getRegisterV2);
 
 //Api para revisor de levantamientos
 router.post("/reviewer/list", levantamientosController.listReviewer);
+router.post('/reviewer/status/:id', levantamientosController.reviewerLevantamientosStatus);
 
 //Api para chat de un levantamiento
 router.post("/chat/list", levantamientosController.listChat);

@@ -1325,8 +1325,13 @@ projectsController.reviewerProjects = async (req, res) => {
  *                 type: string 
  *               report:
  *                 type: string 
+ *                 description: Reporte del curador
+ *               notificado:
+ *                 type: boolean
+ *                 description: Indica si se ha notificado al curador
  *               user_id:
- *                 type: integer
+ *                 type: string
+ *                 description: ID del curador
  *     responses:
  *       200:
  *         description: "Proyecto actualizado"

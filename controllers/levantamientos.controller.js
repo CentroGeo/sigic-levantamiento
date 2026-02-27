@@ -1233,4 +1233,106 @@ levantamientosController.listReviewer = async (req, res) => {
   }
 };
 
+/** 
+ * @swagger
+ * /levantamientos/reviewer/status/{id}:
+ *   post:
+ *     tags: [Levantamientos]
+ *     summary: "Actualizar el estado de un levantamiento"
+ *     description: "Actualizar el estado de un levantamiento"
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del levantamiento a actualizar    
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string 
+ *                 description: Estado del levantamiento
+ *               notificado:
+ *                 type: boolean
+ *                 description: Indica si se ha notificado al curador
+ *               report:
+ *                 type: string 
+ *               user_id:
+ *                 type: string 
+ *                 description: ID del curador
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+*/
+levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
+  try {
+    // Actualiza el estado de notificado de un levantamiento
+    if (!req.body.status)
+      return res.status(400).send({ message: "Estado faltante" });
+    // if (!req.body.report)
+    //   return res.status(400).send({ message: "Reporte faltante" });
+    // if (!req.body.user_id)
+    //   return res.status(400).send({ message: "ID faltante" });
+    
+    values = [];
+    fields = [];
+    let index = 1;
+
+    values.push(req.body.status)
+    fields.push(`status = $${index++}`)
+
+    if(req.body.user_id){
+      values.push(req.body.user_id)
+      fields.push(`id_curador = $${index++}`)
+
+      values.push(new Date())
+      fields.push(`fecha_aceptacion = $${index++}`)
+    }
+
+    if(req.body.report){
+      values.push(req.body.report)
+      fields.push(`comentario_curador = $${index++}`)
+    }
+    
+
+    if(req.body.es_notificado){
+      values.push(req.body.es_notificado)
+      fields.push(`es_notificado = $${index++}`)
+    }
+
+    values.push(req.params.id)
+
+    query = `
+      UPDATE public.levantamientos
+      SET ${fields.join(", ")}
+      WHERE id = $${index}
+    `
+    const updateSql = {
+      text: query,
+      values: values
+    };
+
+    // Ejecuta la consulta de actualizaci n
+    const { rows } = await databasePool.query(updateSql);
+
+    // Devuelve una respuesta con el estado de la operaci n
+    return res.status(200).send({
+      status: "ok",
+      message: "proyecto actualizado"
+    });
+  } catch (error) {
+    // Devuelve una respuesta con el mensaje de error
+    return res.status(400).send({ message: error.message });
+  }
+};
 module.exports = levantamientosController;
