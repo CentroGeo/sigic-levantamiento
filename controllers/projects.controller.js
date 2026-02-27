@@ -1258,14 +1258,13 @@ projectsController.reviewerProjects = async (req, res) => {
     const query = `
       SELECT l.*,
             l.region AS ruta,
-            pu.rol as rol,
             CONCAT('apidev/', REPLACE(l.imagen,'./','')) AS path_media_folder,
             l.es_institucion,
             count(l2.id) as num_aportaciones
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
-      WHERE pu.status = $1
+      WHERE l.status = $1
       GROUP BY l.id, pu.rol
       ORDER BY l.id DESC
       LIMIT  $2
@@ -1277,12 +1276,12 @@ projectsController.reviewerProjects = async (req, res) => {
       SELECT COUNT(*) AS total
       FROM public.proyectos AS l
       INNER JOIN proyectos_usuarios pu ON l.id = pu.proyecto_id
-      WHERE pu.status = $1
+      WHERE l.status = $1
     `;
 
     const [{ rows: proyectos }, { rows: countRows }] = await Promise.all([
       databasePool.query({ text: query, values: [status, limit, offset] }),
-      databasePool.query({ text: query, values: [status] })
+      databasePool.query({ text: countQuery, values: [status] })
     ]);
 
     const total = parseInt(countRows[0].total, 12);
@@ -1298,6 +1297,7 @@ projectsController.reviewerProjects = async (req, res) => {
       proyectos: proyectos
     });
   } catch (error) {
+    console.log(error)
     return res.status(400).send({ message: error.message });
   }
 }
