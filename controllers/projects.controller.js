@@ -457,8 +457,10 @@ projectsController.getRegisterProject = async (req, res) => {
       SELECT l.*,
         l.region as ruta,
         CONCAT('apidev/', REPLACE(l.imagen,'./','')) as path_media_folder,
-        l.es_institucion
+        l.es_institucion,
+        count(l2.id) as num_aportaciones
       FROM public.proyectos as l
+      LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE l.id_propietario = '${userEmail}' and l.id=${id}
       ORDER BY l.id DESC
     `;
