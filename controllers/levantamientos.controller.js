@@ -1303,7 +1303,11 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
       values.push(req.body.report)
       fields.push(`comentario_curador = $${index++}`)
     }
-    
+
+    if(req.body.respuestas){
+      values.push(req.body.respuestas)
+      fields.push(`respuestas_ficha = $${index++}`)
+    }
 
     if(req.body.es_notificado){
       values.push(req.body.es_notificado)
