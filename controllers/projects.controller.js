@@ -462,6 +462,7 @@ projectsController.getRegisterProject = async (req, res) => {
       FROM public.proyectos as l
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE l.id_propietario = '${userEmail}' and l.id=${id}
+      GROUP BY l.id
       ORDER BY l.id DESC
     `;
 
