@@ -22,7 +22,7 @@ const levantamientosController = {};
 
 /**
  * @swagger
- * /levantamientos/save:
+ * /raising/save:
  *   post:
  *     tags: [Levantamientos]
  *     summary: Crear un nuevo levantamiento
@@ -372,7 +372,7 @@ levantamientosController.create = async (req, res) => {
 
 /**
  * @swagger
- * /levantamientos/user/create:
+ * /raising/user/create:
  *   post:
  *     tags: [Levantamientos]
  *     summary: Crear un nuevo levantamiento
@@ -605,7 +605,7 @@ levantamientosController.createLevantamiento = async (req, res) => {
 
 /**
  * @swagger
- * /levantamientos/register:
+ * /raising/register:
  *   get:
  *     tags: [Levantamientos]
  *     summary: Obtener la ficha de un proyecto
@@ -695,7 +695,7 @@ levantamientosController.getRegister = async (req, res) => {
 
 /**
  * @swagger
- * /levantamientos/getRegisterV2:
+ * /raising/getRegisterV2:
  *   post:
  *     tags: [Levantamientos]
  *     summary: Obtener detalle de levantamiento (V2)
@@ -767,7 +767,7 @@ levantamientosController.getRegisterV2 = async (req, res) => {
 /**
  * List the projects of a user
  * @swagger
- * /levantamientos/user/list:
+ * /raising/user/list:
  *   post:
  *     tags: [Levantamientos]
  *     summary: List the projects of a user
@@ -882,7 +882,7 @@ levantamientosController.listUser = async (req, res) => {
 /**
  * List the chat of a levantamiento
  * @swagger
- * /levantamientos/chat/list:
+ * /raising/chat/list:
  *   get:
  *     tags: [Levantamientos]
  *     summary: List the chat of a levantamiento
@@ -933,7 +933,7 @@ levantamientosController.listChat = async (req, res) => {
 /**
  * Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
  * @swagger
- * /levantamientos/chat/reviewer/{id}:
+ * /raising/chat/reviewer/{id}:
  *   put:
  *     tags: [Levantamientos]
  *     summary: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
@@ -1030,7 +1030,7 @@ levantamientosController.chatReviewer = async (req, res) => {
 /**
  * Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
  * @swagger
- * /levantamientos/chat/creator/{id}:
+ * /raising/chat/creator/{id}:
  *   put:
  *     tags: [Levantamientos]
  *     summary: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
@@ -1115,7 +1115,7 @@ levantamientosController.chatCreator = async (req, res) => {
 /**
  * List the projects that a user can review
  * @swagger
- * /levantamientos/reviewer/list:
+ * /raising/reviewer/list:
  *   post:
  *     tags: [Levantamientos]
  *     summary: List the projects that a user can review
@@ -1235,7 +1235,7 @@ levantamientosController.listReviewer = async (req, res) => {
 
 /** 
  * @swagger
- * /levantamientos/reviewer/status/{id}:
+ * /raising/reviewer/status/{id}:
  *   post:
  *     tags: [Levantamientos]
  *     summary: "Actualizar el estado de un levantamiento"
@@ -1339,4 +1339,43 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     return res.status(400).send({ message: error.message });
   }
 };
+
+/**
+ * @swagger
+ * /raising/{id}:
+ *   delete:
+ *     tags: [Levantamientos]
+ *     summary: Elimina un levantamiento
+ *     description: Elimina un levantamiento
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID del levantamiento
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ */
+levantamientosController.deleteLevantamiento = async (req, res) => {
+  try {
+    const deleteSql = {
+      text: "DELETE FROM public.levantamientos WHERE id = $1",
+      values: [req.params.id]
+    };
+    const { rows } = await databasePool.query(deleteSql);
+    return res.status(200).send({
+      status: "ok",
+      message: "levantamiento eliminado"
+    });
+  } catch (error) {
+    return res.status(400).send({ message: error.message });
+  }
+}
 module.exports = levantamientosController;
