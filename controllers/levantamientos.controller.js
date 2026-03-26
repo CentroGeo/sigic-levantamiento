@@ -489,7 +489,7 @@ levantamientosController.createLevantamiento = async (req, res) => {
     // }
 
     let tiene_ficha = req.body.respuestas ? true : false;
-    json_respuestas = req.body.respuestas;
+    json_respuestas = JSON.stringify(req.body.respuestas);
 
     let estado = "";
     let municipio = "";
@@ -1305,7 +1305,7 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     }
 
     if(req.body.respuestas){
-      values.push(req.body.respuestas)
+      values.push(JSON.stringify(req.body.respuestas))
       fields.push(`respuestas_ficha = $${index++}`)
     }
 
