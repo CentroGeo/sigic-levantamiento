@@ -733,7 +733,23 @@ levantamientosController.getRegister = async (req, res) => {
 levantamientosController.getRegisterV2 = async (req, res) => {
   try {
     const { rows } = await databasePool.query({
-      text: `SELECT respuestas_ficha::json, l.media_array as path_media_folder, l.nombre 
+      text: `SELECT respuestas_ficha::json, l.media_array as path_media_folder, l.nombre,
+            l.fecha_levantamiento, 
+            l.fecha_guardado,
+            l.fuente, 
+            l.latitud, 
+            l.longitud, 
+            l.status, 
+            l.tiene_ficha, 
+            l.id_proyecto, 
+            l.datos_usuario, 
+            l.ubicacion_sensible, 
+            l.estado, 
+            l.municipio, 
+            l.localidad, 
+            l.isfromgallery, 
+            l.insitu, 
+            l.ocultar_ficha
 				   FROM levantamientos l 
 				   WHERE id = $1 and respuestas_ficha is not null
 					`,
@@ -756,7 +772,22 @@ levantamientosController.getRegisterV2 = async (req, res) => {
       //answers: rows[0]["respuestas_ficha"]
       answers: respuestas,
       path_media_folder: rows.length > 0 ? rows[0].path_media_folder : null,
-      title: rows.length > 0 ? rows[0].nombre : null
+      title: rows.length > 0 ? rows[0].nombre : null,
+      fecha_levantamiento: rows.length > 0 ? rows[0].fecha_levantamiento : null,
+      fecha_guardado: rows.length > 0 ? rows[0].fecha_guardado : null,
+      fuente: rows.length > 0 ? rows[0].fuente : null,
+      latitud: rows.length > 0 ? rows[0].latitud : null,
+      longitud: rows.length > 0 ? rows[0].longitud : null,
+      status: rows.length > 0 ? rows[0].status : null,
+      tiene_ficha: rows.length > 0 ? rows[0].tiene_ficha : null,
+      id_proyecto: rows.length > 0 ? rows[0].id_proyecto : null,
+      datos_usuario: rows.length > 0 ? rows[0].datos_usuario : null,
+      ubicacion_sensible: rows.length > 0 ? rows[0].ubicacion_sensible : null,
+      estado: rows.length > 0 ? rows[0].estado : null,
+      municipio: rows.length > 0 ? rows[0].municipio : null,
+      localidad: rows.length > 0 ? rows[0].localidad : null,
+      isfromgallery: rows.length > 0 ? rows[0].isfromgallery : null,
+      insitu: rows.length > 0 ? rows[0].insitu : null
     });
   } catch (error) {
     console.log(error);
