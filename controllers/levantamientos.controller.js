@@ -489,7 +489,7 @@ levantamientosController.createLevantamiento = async (req, res) => {
     // }
 
     let tiene_ficha = req.body.respuestas ? true : false;
-    json_respuestas = JSON.stringify(req.body.respuestas);
+    json_respuestas = req.body.respuestas;
 
     let estado = "";
     let municipio = "";
@@ -1314,7 +1314,7 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     //   return res.status(400).send({ message: "Reporte faltante" });
     // if (!req.body.user_id)
     //   return res.status(400).send({ message: "ID faltante" });
-    
+
     values = [];
     fields = [];
     let index = 1;
@@ -1336,13 +1336,32 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     }
 
     if(req.body.respuestas){
-      values.push(JSON.stringify(req.body.respuestas))
+      values.push(req.body.respuestas)
       fields.push(`respuestas_ficha = $${index++}`)
     }
 
     if(req.body.es_notificado){
       values.push(req.body.es_notificado)
       fields.push(`es_notificado = $${index++}`)
+    }
+
+    // Eliminar imágenes seleccionadas (images_delete)
+    if (req.body.images_delete && Array.isArray(req.body.images_delete)) {
+      const projectId = req.body.id_proyecto;
+      const subfolder = projectId ? projectId : "images";
+      const basePath = `./uploads/levantamientos/${subfolder}/`;
+
+      req.body.images_delete.forEach(imageName => {
+        const imagePath = path.join(basePath, imageName);
+        try {
+          if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+            console.log(`Archivo eliminado: ${imagePath}`);
+          }
+        } catch (err) {
+          console.error(`Error al eliminar imagen ${imagePath}:`, err);
+        }
+      });
     }
 
     values.push(req.params.id)
