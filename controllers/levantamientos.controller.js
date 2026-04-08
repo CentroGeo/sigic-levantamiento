@@ -1322,8 +1322,8 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     values.push(req.body.status)
     fields.push(`status = $${index++}`)
 
-    if(req.body.user_id){
-      values.push(req.body.user_id)
+    if(req.body.curador_id){
+      values.push(req.body.curador_id)
       fields.push(`id_curador = $${index++}`)
 
       values.push(new Date())
@@ -1364,13 +1364,24 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
       });
     }
 
-    values.push(req.params.id)
+    let whereClause = `WHERE id = $${index++}`;
+    values.push(req.params.id);
 
-    query = `
+    // Si hay respuestas, forzar validación por usuario_id
+    if (req.body.respuestas) {
+      if (!req.body.user_id) {
+        return res.status(400).send({ message: "ID de usuario faltante para actualizar respuestas" });
+      }
+      whereClause += ` AND usuario_id = $${index++}`;
+      values.push(req.body.user_id);
+    }
+
+    const query = `
       UPDATE public.levantamientos
       SET ${fields.join(", ")}
-      WHERE id = $${index}
-    `
+      ${whereClause}
+    `;
+
     const updateSql = {
       text: query,
       values: values
