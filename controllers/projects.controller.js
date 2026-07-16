@@ -12,6 +12,11 @@ const Mailer = require("../helpers/Mailer");
 
 const projectsController = {};
 
+const PROJECT_ROLES = new Set(['administrar', 'revisar', 'aporta', 'ver']);
+const PROJECT_STATUSES = new Set(['SIN EVALUAR', 'EN REVISION', 'APROBADO', 'RECHAZADO']);
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /*********** Sección API de Proyectos *****************/
 
 /**
@@ -943,6 +948,10 @@ projectsController.sharedProjectsUserList = async (req, res) => {
  *               rol:
  *                 type: string
  *                 description: Rol del usuario en el proyecto (administrar, revisar, aporta, ver)
+ *               message:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Mensaje personalizado que acompa&ntilde;a la invitaci&oacute;n
  *     responses:
  *       200:
  *         description: OK
@@ -963,8 +972,42 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
   // Obtiene el id del proyecto
   const project = req.params.project;
 
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const message = String(req.body.message || '').trim();
+  const role = req.body.rol;
+
+  // Valida los datos y evita participantes duplicados en el proyecto.
+  if (!EMAIL_PATTERN.test(email))
+    return res.status(400).send({ message: "Ingresa un correo electrónico válido" });
+  if (!PROJECT_ROLES.has(role))
+    return res.status(400).send({ message: "El permiso indicado no es válido" });
+  if (!message)
+    return res.status(400).send({ message: "El mensaje de invitación es obligatorio" });
+  if (message.length > 500)
+    return res.status(400).send({ message: "El mensaje de invitación no debe superar 500 caracteres" });
+
   try {
-    // Inserta el usuario en la tabla proyectos_usuarios
+    const { rows: projects } = await databasePool.query({
+      text: `SELECT id, id_propietario FROM public.proyectos WHERE id = $1 AND activo = true`,
+      values: [project]
+    });
+
+    if (!projects.length)
+      return res.status(404).send({ message: "El proyecto no existe" });
+    if (String(projects[0].id_propietario).toLowerCase() === email)
+      return res.status(400).send({ message: "La persona propietaria ya pertenece al proyecto" });
+
+    const { rows: existingUsers } = await databasePool.query({
+      text: `
+        SELECT id FROM public.proyectos_usuarios
+        WHERE proyecto_id = $1 AND LOWER(correo) = $2
+      `,
+      values: [project, email]
+    });
+
+    if (existingUsers.length)
+      return res.status(409).send({ message: "La persona ya participa en este proyecto" });
+
     const { rows } = await databasePool.query({
       text: `
         INSERT INTO 
@@ -983,14 +1026,15 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
           $5,
           $6
         )
+        RETURNING *
       `,
       values: [
         project,
-        req.body.email,
-        req.body.rol,
+        email,
+        role,
         new Date(),
         true,
-        req.body.message
+        message
       ]
     });
 
@@ -998,7 +1042,7 @@ projectsController.sharedProjectsUserAdd = async (req, res) => {
       const mailer = new Mailer();
   
       mailer.templateGuestUser();
-      await mailer.send("Invitación a participar ", req.body.email);
+      await mailer.send("Invitación a participar ", email);
     } catch (error) {
       console.log(error)
     }
@@ -1057,16 +1101,21 @@ projectsController.sharedProjectsUserRemove = async (req, res) => {
   const id = req.params.user_id;
 
   try {
-    // Elimina el usuario de la tabla proyectos_usuarios
-    await databasePool.query({
+    // Elimina al participante únicamente del proyecto indicado.
+    const { rows } = await databasePool.query({
       text: `
         DELETE FROM public.proyectos_usuarios
-        WHERE id = $1
+        WHERE id = $1 AND proyecto_id = $2
+        RETURNING *
       `,
       values: [
-        id
+        id,
+        project
       ]
     });
+
+    if (!rows.length)
+      return res.status(404).send({ message: "La persona no pertenece a este proyecto" });
 
     // Regresa el usuario eliminado
     return res.status(200).send({
@@ -1134,19 +1183,27 @@ projectsController.sharedProjectsUserUpdate = async (req, res) => {
   const project = req.params.project;
   const id = req.params.user_id;
 
+  if (!PROJECT_ROLES.has(req.body.rol))
+    return res.status(400).send({ message: "El permiso indicado no es válido" });
+
   try {
-    // Actualiza el rol del usuario en la tabla proyectos_usuarios
-    await databasePool.query({
+    // Actualiza el rol únicamente dentro del proyecto indicado.
+    const { rows } = await databasePool.query({
       text: `
         UPDATE public.proyectos_usuarios
         SET rol = $1
-        WHERE id = $2
+        WHERE id = $2 AND proyecto_id = $3
+        RETURNING *
       `,
       values: [
         req.body.rol,
-        id
+        id,
+        project
       ]
     });
+
+    if (!rows.length)
+      return res.status(404).send({ message: "La persona no pertenece a este proyecto" });
 
     // Regresa el usuario actualizado
     return res.status(200).send({
@@ -1349,19 +1406,28 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
     // Actualiza el estado de notificado de un levantamiento
     if (!req.body.status)
       return res.status(400).send({ message: "Estado faltante" });
+    if (!PROJECT_STATUSES.has(req.body.status))
+      return res.status(400).send({ message: "Estado de proyecto no válido" });
     // if (!req.body.report)
     //   return res.status(400).send({ message: "Reporte faltante" });
     // if (!req.body.user_id)
     //   return res.status(400).send({ message: "ID faltante" });
     
-    values = [];
-    fields = [];
+    const values = [];
+    const fields = [];
     let index = 1;
 
     values.push(req.body.status)
     fields.push(`status = $${index++}`)
 
-    if(req.body.user_id){
+    // Actualiza la privacidad y el curador según la resolución del proyecto.
+    if (req.body.status === 'APROBADO') {
+      fields.push('es_privada = false');
+    } else if (req.body.status === 'EN REVISION' || req.body.status === 'RECHAZADO') {
+      fields.push('es_privada = true');
+    }
+
+    if (req.body.user_id && ['APROBADO', 'RECHAZADO'].includes(req.body.status)) {
       values.push(req.body.user_id)
       fields.push(`id_curador = $${index++}`)
 
@@ -1382,10 +1448,11 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
 
     values.push(req.params.id)
 
-    query = `
+    const query = `
       UPDATE public.proyectos
       SET ${fields.join(", ")}
       WHERE id = $${index}
+      RETURNING id, status, es_privada
     `
     const updateSql = {
       text: query,
@@ -1395,10 +1462,14 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
     // Ejecuta la consulta de actualizaci n
     const { rows } = await databasePool.query(updateSql);
 
+    if (!rows.length)
+      return res.status(404).send({ message: "El proyecto no existe" });
+
     // Devuelve una respuesta con el estado de la operaci n
     return res.status(200).send({
       status: "ok",
-      message: "proyecto actualizado"
+      message: "proyecto actualizado",
+      proyecto: rows[0]
     });
   } catch (error) {
     // Devuelve una respuesta con el mensaje de error
