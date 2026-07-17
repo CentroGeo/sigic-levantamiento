@@ -692,31 +692,50 @@ downloadsController.listReviewer = async (req, res) => {
 		
 		if (!req.body.email)
 			return res.status(400).send({ message: "Correo electrónico faltante" });
-	
+
+		const reviewerFilter = req.body.status === 'NO REVISADO'
+			? '(l.id_curador = $1 OR l.id_curador IS NULL)'
+			: 'l.id_curador = $1';
+		const accessFilter = `
+			l.status = $2 AND (
+				p.id_propietario = $1 OR (
+					EXISTS (
+						SELECT 1
+						FROM proyectos_usuarios pu
+						WHERE pu.proyecto_id = l.id_proyecto
+							AND pu.correo = $1
+							AND pu.rol IN ('administrar', 'revisar')
+					) AND ${reviewerFilter}
+				)
+			)
+		`;
 		const query = `
 			SELECT 
 				l.*
 			FROM public.descargas as l
-			inner join proyectos p on p.id = l.id_proyecto
-			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-			WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`})
-					or p.id_propietario = '${req.body.email}'
-			LIMIT  $1
-			OFFSET $2
+			INNER JOIN proyectos p ON p.id = l.id_proyecto
+			WHERE ${accessFilter}
+			ORDER BY l.fecha_solicitud ASC
+			LIMIT $3
+			OFFSET $4
 		`
 
 		const countQuery = `
 			SELECT COUNT(*) AS total
 			FROM public.descargas as l
-			inner join proyectos p on p.id = l.id_proyecto
-			inner join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-			WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)`: `l.id_curador = '${req.body.email}'`})
-				  or p.id_propietario = '${req.body.email}'
+			INNER JOIN proyectos p ON p.id = l.id_proyecto
+			WHERE ${accessFilter}
 		`;
 
 		const [{ rows: descargas }, { rows: countRows }] = await Promise.all([
-			databasePool.query({ text: query, values: [limit, offset] }),
-			databasePool.query(countQuery)
+			databasePool.query({
+				text: query,
+				values: [req.body.email, req.body.status, limit, offset]
+			}),
+			databasePool.query({
+				text: countQuery,
+				values: [req.body.email, req.body.status]
+			})
 		]);
 		
 		const total = parseInt(countRows[0].total, 12);
