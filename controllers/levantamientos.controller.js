@@ -464,7 +464,12 @@ levantamientosController.createLevantamiento = async (req, res) => {
   console.log(req.body);
   let sql_insert = "";
   let json_respuestas = null;
-  let array_multimedia = [];
+  const array_multimedia = (req.files || []).map((file) => ({
+    original_name: file.originalname,
+    file_name: file.filename,
+    mimetype: file.mimetype,
+    path: file.path.replace(/\\/g, "/")
+  }));
   let isFromGallery = false; //por default
   let in_situ = true; //por default
 
@@ -565,7 +570,7 @@ levantamientosController.createLevantamiento = async (req, res) => {
         req.body.id_proyecto,
         json_respuestas,
         req.body.datos_usuario,
-        JSON.stringify([]),
+        JSON.stringify(array_multimedia),
         req.body.ubicacion_sensible,
         estado,
         municipio,
@@ -598,6 +603,83 @@ levantamientosController.createLevantamiento = async (req, res) => {
       status: "Error",
       message: error.message,
       error: error
+    });
+  }
+};
+
+levantamientosController.updateLevantamiento = async (req, res) => {
+  try {
+    if (!req.body.id_usuario) {
+      return res.status(400).send({ message: "Correo electrónico faltante" });
+    }
+
+    const { rows: existentes } = await databasePool.query({
+      text: `
+        SELECT media_array
+        FROM public.levantamientos
+        WHERE id = $1 AND usuario_id = $2
+      `,
+      values: [req.params.id, req.body.id_usuario]
+    });
+
+    if (!existentes.length) {
+      return res.status(404).send({ message: "Aporte no encontrado" });
+    }
+
+    const mediaExistente = Array.isArray(existentes[0].media_array)
+      ? existentes[0].media_array
+      : JSON.parse(existentes[0].media_array || "[]");
+    const mediaNueva = (req.files || []).map((file) => ({
+      original_name: file.originalname,
+      file_name: file.filename,
+      mimetype: file.mimetype,
+      path: file.path.replace(/\\/g, "/")
+    }));
+
+    const { rows } = await databasePool.query({
+      text: `
+        UPDATE public.levantamientos
+        SET nombre = $1,
+            fecha_guardado = $2,
+            latitud = $3,
+            longitud = $4,
+            geom = ST_SetSRID(ST_MakePoint($4, $3), 4326),
+            id_proyecto = $5,
+            respuestas_ficha = $6,
+            tiene_ficha = $7,
+            media_array = $8,
+            ubicacion_sensible = $9,
+            ocultar_ficha = $10,
+            status = $11
+        WHERE id = $12 AND usuario_id = $13
+        RETURNING *
+      `,
+      values: [
+        req.body.titulo,
+        new Date(),
+        req.body.latitud,
+        req.body.longitud,
+        req.body.id_proyecto,
+        req.body.respuestas || null,
+        Boolean(req.body.respuestas),
+        JSON.stringify([...mediaExistente, ...mediaNueva]),
+        req.body.ubicacion_sensible,
+        req.body.ocultar_ficha,
+        req.body.status,
+        req.params.id,
+        req.body.id_usuario
+      ]
+    });
+
+    return res.status(200).send({
+      status: "ok",
+      message: "Aporte actualizado",
+      levantamiento: rows[0]
+    });
+  } catch (error) {
+    return res.status(400).send({
+      status: "Error",
+      message: error.message
     });
   }
 };
