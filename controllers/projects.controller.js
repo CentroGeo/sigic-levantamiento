@@ -458,6 +458,11 @@ projectsController.getRegisterProject = async (req, res) => {
     const userEmail = req.body.email;
     const id = req.params.id;
 
+    if (!userEmail) {
+      return res.status(400).send({ message: "Correo electr&oacute;nico faltante" });
+    }
+
+    // Permite cargar la configuración al propietario o a un participante con rol administrar.
     const query = `
       SELECT l.*,
         l.region as ruta,
@@ -466,12 +471,25 @@ projectsController.getRegisterProject = async (req, res) => {
         count(l2.id) as num_aportaciones
       FROM public.proyectos as l
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
-      WHERE l.id_propietario = '${userEmail}' and l.id=${id}
+      WHERE l.id = $1
+        AND (
+          l.id_propietario = $2
+          OR EXISTS (
+            SELECT 1
+            FROM public.proyectos_usuarios pu
+            WHERE pu.proyecto_id = l.id
+              AND pu.correo = $2
+              AND pu.rol = 'administrar'
+          )
+        )
       GROUP BY l.id
       ORDER BY l.id DESC
     `;
 
-    const { rows } = await databasePool.query({ text: query });
+    const { rows } = await databasePool.query({
+      text: query,
+      values: [id, userEmail],
+    });
 
     return res.status(200).send({
       proyectos: rows
