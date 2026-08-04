@@ -13,8 +13,132 @@ const { Query } = require("pg");
 const https = require("https");
 const moment = require("moment");
 const im = require("imagemagick");
+const {
+  generateContributionExport,
+  normalizeContributionFormat
+} = require("../services/contribution-exporter");
 
 const levantamientosController = {};
+const REVIEW_STATUSES = new Set(["NO REVISADO", "APROBADO", "RECHAZADO"]);
+const REVIEW_PAGE_SIZE = 12;
+
+function normalizeEmail(value) {
+  return String(value || "").trim();
+}
+
+function normalizePage(value) {
+  const page = Number.parseInt(value, 10);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+/**
+ * @swagger
+ * /raising/{id}/export:
+ *   get:
+ *     tags: [Levantamientos]
+ *     summary: Descarga un aporte en un formato geográfico
+ *     description: Genera un ZIP con el archivo geográfico, el diccionario de datos y su carpeta multimedia.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del aporte.
+ *       - in: query
+ *         name: format
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [geojson, kml, shapefile]
+ *         description: Formato geográfico solicitado.
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *         description: Correo utilizado para validar el acceso al aporte.
+ *     responses:
+ *       200:
+ *         description: Archivo ZIP generado correctamente.
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *             description: Nombre sugerido para el archivo ZIP.
+ *         content:
+ *           application/zip:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Parámetros incompletos o formato no soportado.
+ *       404:
+ *         description: Aporte inexistente o sin permiso de descarga.
+ *       422:
+ *         description: El aporte no contiene coordenadas válidas.
+ *       500:
+ *         description: No fue posible generar el archivo.
+ */
+levantamientosController.exportContribution = async (req, res) => {
+  try {
+    const contributionId = Number(req.params.id);
+    const email = normalizeEmail(req.query.email);
+    const format = normalizeContributionFormat(req.query.format);
+
+    if (!Number.isInteger(contributionId) || contributionId <= 0)
+      return res.status(400).send({ message: "ID de aporte inválido" });
+    if (!email)
+      return res.status(400).send({ message: "Correo electrónico faltante" });
+
+    const { rows } = await databasePool.query({
+      text: `
+        SELECT l.*, p.nombre AS nombre_proyecto
+        FROM public.levantamientos l
+        INNER JOIN public.proyectos p ON p.id = l.id_proyecto
+        WHERE l.id = $1
+          AND (
+            l.usuario_id = $2
+            OR p.id_propietario = $2
+            OR EXISTS (
+              SELECT 1
+              FROM public.proyectos_usuarios pu
+              WHERE pu.proyecto_id = l.id_proyecto
+                AND pu.correo = $2
+                AND pu.rol IN ('administrar', 'revisar')
+            )
+          )
+        LIMIT 1
+      `,
+      values: [contributionId, email]
+    });
+
+    if (!rows.length)
+      return res.status(404).send({ message: "Aporte no encontrado o sin permiso de descarga" });
+
+    const exported = await generateContributionExport(
+      rows[0],
+      format,
+      path.resolve(process.cwd(), "uploads")
+    );
+    res.set({
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Content-Type": exported.contentType,
+      "Content-Length": exported.data.length,
+      "Content-Disposition": `attachment; filename="${exported.fileName}"`
+    });
+    return res.send(exported.data);
+  } catch (error) {
+    console.error("Error al exportar aporte:", error);
+    return res.status(error.statusCode || 500).send({
+      message: error.message || "No fue posible exportar el aporte"
+    });
+  }
+};
 
 
 
@@ -878,30 +1002,30 @@ levantamientosController.getRegisterV2 = async (req, res) => {
 };
 
 /**
- * List the projects of a user
+ * Lista los aportes creados por un usuario.
  * @swagger
  * /raising/user/list:
  *   post:
  *     tags: [Levantamientos]
- *     summary: List the projects of a user
- *     description: List the projects of a user
+ *     summary: Lista los aportes de un usuario por estado
+ *     description: Obtiene de forma paginada los aportes creados por un usuario que coinciden con el estado solicitado.
  *     parameters:
  *       - in: query
  *         name: page
  *         required: false
- *         description: Page number
+ *         description: Número de página.
  *       - in: query
  *         name: limit
  *         required: false
- *         description: Number of projects per page
+ *         description: Número máximo de aportes por página.
  *       - in: body
  *         name: email
  *         required: true
- *         description: Email of the user
+ *         description: Correo electrónico del usuario.
  *       - in: body
  *         name: status
  *         required: true
- *         description: Status of the projects
+ *         description: Estado de los aportes.
  *     responses:
  *       200:
  *         description: OK
@@ -915,16 +1039,16 @@ levantamientosController.getRegisterV2 = async (req, res) => {
  *                   properties:
  *                     page:
  *                       type: integer
- *                       description: Page number
+ *                       description: Número de página.
  *                     limit:
  *                       type: integer
- *                       description: Number of projects per page
+ *                       description: Número máximo de aportes por página.
  *                     total:
  *                       type: integer
- *                       description: Total number of projects
+ *                       description: Total de aportes encontrados.
  *                     totalPages:
  *                       type: integer
- *                       description: Total number of pages
+ *                       description: Total de páginas.
  *                 levantamientos:
  *                   type: array
  *                   items:
@@ -932,13 +1056,13 @@ levantamientosController.getRegisterV2 = async (req, res) => {
  *                     properties:
  *                       id:
  *                         type: integer
- *                         description: ID of the project
+ *                         description: Identificador del aporte.
  *                       nombre:
  *                         type: string
- *                         description: Name of the project
+ *                         description: Nombre del aporte.
  *                       path_media_folder:
  *                         type: string
- *                         description: Path of the media folder of the project
+ *                         description: Referencias a los archivos multimedia del aporte.
  */
 levantamientosController.listUser = async (req, res) => {
   try {
@@ -969,7 +1093,7 @@ levantamientosController.listUser = async (req, res) => {
       databasePool.query(countQuery)
     ]);
 
-    const total = parseInt(countRows[0].total, 12);
+    const total = Number.parseInt(countRows[0].total, 10);
     const totalPages = Math.ceil(total / limit)
 
     return res.status(200).send({
@@ -993,21 +1117,28 @@ levantamientosController.listUser = async (req, res) => {
 };
 
 /**
- * List the chat of a levantamiento
+ * Consulta el historial de comunicación de un aporte.
  * @swagger
  * /raising/chat/list:
- *   get:
+ *   post:
  *     tags: [Levantamientos]
- *     summary: List the chat of a levantamiento
- *     description: List the chat of a levantamiento
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: ID del levantamiento
+ *     summary: Consulta el historial de comunicación de un aporte
+ *     description: Devuelve, en orden cronológico, los mensajes intercambiados durante la revisión de un aporte.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [id]
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Identificador del aporte.
  *     responses:
  *       200:
- *         description: OK
+ *         description: Historial obtenido correctamente.
  *         content:
  *           application/json:
  *             schema:
@@ -1017,16 +1148,18 @@ levantamientosController.listUser = async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                     description: ID of the message
+ *                     description: Identificador del mensaje.
  *                   texto:
  *                     type: string
- *                     description: Text of the message
+ *                     description: Contenido del mensaje.
  *                   fecha_hora:
  *                     type: string
- *                     description: Date and time of the message
+ *                     description: Fecha y hora de creación.
  *                   usuario_id:
- *                     type: integer
- *                     description: ID of the user who sent the message
+ *                     type: string
+ *                     description: Identificador de la persona que envió el mensaje.
+ *       400:
+ *         description: Identificador faltante o no válido.
  */
 levantamientosController.listChat = async (req, res) => {
   await databasePool
@@ -1044,34 +1177,38 @@ levantamientosController.listChat = async (req, res) => {
 
 
 /**
- * Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
+ * Registra una observación del revisor.
  * @swagger
  * /raising/chat/reviewer/{id}:
  *   put:
  *     tags: [Levantamientos]
- *     summary: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
- *     description: Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador
+ *     summary: Registra una observación del revisor
+ *     description: Añade un mensaje al historial del aporte y actualiza su seguimiento dentro del proceso de revisión.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: ID del levantamiento
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del aporte.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [report, user_id]
  *             properties:
  *               report:
  *                 type: string
- *                 description: Reporte del curador
+ *                 description: Contenido de la observación.
  *               user_id:
- *                 type: integer
- *                 description: ID del curador
+ *                 type: string
+ *                 description: Identificador de la persona revisora.
  *     responses:
  *       200:
- *         description: Levantamiento actualizado
+ *         description: Observación registrada correctamente.
  *         content:
  *           application/json:
  *             schema:
@@ -1079,7 +1216,9 @@ levantamientosController.listChat = async (req, res) => {
  *               properties:
  *                 status:
  *                   type: string
- *                   description: Estado del levantamiento
+ *                   description: Resultado de la operación.
+ *       400:
+ *         description: Mensaje o identificador de revisor faltante.
  */
 /* Actualiza el estado de un levantamiento a EN REVISIÓN y notifica al curador */
 levantamientosController.chatReviewer = async (req, res) => {
@@ -1141,34 +1280,38 @@ levantamientosController.chatReviewer = async (req, res) => {
 }
 
 /**
- * Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
+ * Registra una respuesta del autor del aporte.
  * @swagger
  * /raising/chat/creator/{id}:
  *   put:
  *     tags: [Levantamientos]
- *     summary: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
- *     description: Actualiza el estado de un levantamiento a EN PAUSA y notifica al curador
+ *     summary: Registra una respuesta del autor del aporte
+ *     description: Añade una respuesta al historial del aporte y continúa su proceso de atención.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: ID del levantamiento
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del aporte.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:  
  *           schema:
  *             type: object
+ *             required: [report, user_id]
  *             properties:
  *               report:
  *                 type: string
- *                 description: Reporte del curador
+ *                 description: Contenido de la respuesta.
  *               user_id:
- *                 type: integer
- *                 description: ID del curador
+ *                 type: string
+ *                 description: Identificador del autor del aporte.
  *     responses:
  *       200:
- *         description: Levantamiento actualizado
+ *         description: Respuesta registrada correctamente.
  *         content:
  *           application/json:
  *             schema:
@@ -1176,7 +1319,9 @@ levantamientosController.chatReviewer = async (req, res) => {
  *               properties:
  *                 status:
  *                   type: string
- *                   description: Estado del levantamiento
+ *                   description: Resultado de la operación.
+ *       400:
+ *         description: Mensaje o identificador del autor faltante.
  */
 levantamientosController.chatCreator = async (req, res) => {
   if (!req.body.report) {
@@ -1226,33 +1371,40 @@ levantamientosController.chatCreator = async (req, res) => {
 }
 
 /**
- * List the projects that a user can review
+ * Lista los aportes que un usuario puede revisar.
  * @swagger
  * /raising/reviewer/list:
  *   post:
  *     tags: [Levantamientos]
- *     summary: List the projects that a user can review
- *     description: List the projects that a user can review
+ *     summary: Lista los aportes disponibles para revisión
+ *     description: Obtiene los aportes de proyectos propios o con permisos de administración/revisión, excluyendo los aportes creados por el revisor.
  *     parameters:
  *       - in: query
  *         name: page
  *         required: false
- *         description: Page number
- *       - in: query
- *         name: limit
- *         required: false
- *         description: Number of projects per page
- *       - in: body
- *         name: email
- *         required: true
- *         description: Email of the user
- *       - in: body
- *         name: status
- *         required: true
- *         description: Status of the projects
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Número de página.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, status]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Correo del propietario, administrador o revisor.
+ *               status:
+ *                 type: string
+ *                 enum: [NO REVISADO, APROBADO, RECHAZADO]
+ *                 description: Estado de los aportes que se desea consultar.
  *     responses:
  *       200:
- *         description: OK
+ *         description: Listado obtenido correctamente.
  *         content:
  *           application/json:
  *             schema:
@@ -1263,16 +1415,16 @@ levantamientosController.chatCreator = async (req, res) => {
  *                   properties:
  *                     page:
  *                       type: integer
- *                       description: Page number
+ *                       description: Número de página.
  *                     limit:
  *                       type: integer
- *                       description: Number of projects per page
+ *                       description: Número máximo de aportes por página.
  *                     total:
  *                       type: integer
- *                       description: Total number of projects
+ *                       description: Total de aportes encontrados.
  *                     totalPages:
  *                       type: integer
- *                       description: Total number of pages
+ *                       description: Total de páginas.
  *                 levantamientos:
  *                   type: array
  *                   items:
@@ -1280,52 +1432,77 @@ levantamientosController.chatCreator = async (req, res) => {
  *                     properties:
  *                       id:
  *                         type: integer
- *                         description: ID of the project
+ *                         description: Identificador del aporte.
  *                       title:
  *                         type: string
- *                         description: Title of the project
+ *                         description: Título del aporte.
  *                       path_media_folder:
  *                         type: string
- *                         description: Path of the project media folder
+ *                         description: Referencias a los archivos multimedia del aporte.
+ *       400:
+ *         description: Correo faltante o estado no permitido.
  */
 levantamientosController.listReviewer = async (req, res) => {
   try {
-    const page = parseInt(req.query.page, 12) || 1;
-    const limit = 12;
+    const page = normalizePage(req.query.page);
+    const limit = REVIEW_PAGE_SIZE;
     const offset = (page - 1) * limit;
+    const email = normalizeEmail(req.body.email);
+    const status = String(req.body.status || "").trim();
 
-    if (!req.body.email)
+    if (!email)
       return res.status(400).send({ message: "Correo electrónico faltante" });
+    if (!REVIEW_STATUSES.has(status))
+      return res.status(400).send({ message: "Estado de aporte inválido" });
 
+    // La revisión se concede por proyecto; ser autor de un aporte no otorga permisos
+    // administrativos y tampoco permite autoaprobarlo.
     const query = `
       SELECT 
         l.*, l.nombre as title, media_array as path_media_folder
       FROM levantamientos l
-      LEFT join proyectos p on p.id = l.id_proyecto
-      LEFT join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-      WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)` : `l.id_curador = '${req.body.email}'`})
-            or p.id_propietario = '${req.body.email}'
-      LIMIT  $1
-      OFFSET $2
+      INNER JOIN proyectos p ON p.id = l.id_proyecto
+      WHERE l.status = $2
+        AND l.usuario_id <> $1
+        AND (
+          p.id_propietario = $1
+          OR EXISTS (
+            SELECT 1
+            FROM proyectos_usuarios pu
+            WHERE pu.proyecto_id = l.id_proyecto
+              AND pu.correo = $1
+              AND pu.rol IN ('administrar', 'revisar')
+          )
+        )
+      ORDER BY l.fecha_guardado DESC, l.id DESC
+      LIMIT $3
+      OFFSET $4
     `;
-
-    console.log("dAATA!!!", query)
 
     const countQuery = `
       SELECT COUNT(*) AS total
       FROM levantamientos l
-      LEFT join proyectos p on p.id = l.id_proyecto
-      LEFT join proyectos_usuarios pu on pu.proyecto_id = l.id_proyecto
-      WHERE ((pu.correo='${req.body.email}' and pu.rol IN ('administrar', 'revisar')) and l.status = '${req.body.status}' and ${req.body.status == 'SIN EVALUAR' ? `(l.id_curador = '${req.body.email}' OR l.id_curador is null)` : `l.id_curador = '${req.body.email}'`})
-            or p.id_propietario = '${req.body.email}'
+      INNER JOIN proyectos p ON p.id = l.id_proyecto
+      WHERE l.status = $2
+        AND l.usuario_id <> $1
+        AND (
+          p.id_propietario = $1
+          OR EXISTS (
+            SELECT 1
+            FROM proyectos_usuarios pu
+            WHERE pu.proyecto_id = l.id_proyecto
+              AND pu.correo = $1
+              AND pu.rol IN ('administrar', 'revisar')
+          )
+        )
     `;
 
     const [{ rows: levantamientos }, { rows: countRows }] = await Promise.all([
-      databasePool.query({ text: query, values: [limit, offset] }),
-      databasePool.query(countQuery)
+      databasePool.query({ text: query, values: [email, status, limit, offset] }),
+      databasePool.query({ text: countQuery, values: [email, status] })
     ]);
 
-    const total = parseInt(countRows[0].total, 12);
+    const total = Number.parseInt(countRows[0].total, 10);
     const totalPages = Math.ceil(total / limit)
 
     return res.status(200).send({
@@ -1353,34 +1530,41 @@ levantamientosController.listReviewer = async (req, res) => {
  * /raising/reviewer/status/{id}:
  *   post:
  *     tags: [Levantamientos]
- *     summary: "Actualizar el estado de un levantamiento"
- *     description: "Actualizar el estado de un levantamiento"
+ *     summary: Actualiza el resultado de la revisión de un aporte
+ *     description: Permite al propietario, administrador o revisor autorizado aprobar, rechazar o devolver un aporte ajeno a revisión.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: ID del levantamiento a actualizar    
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del aporte.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [status, user_id]
  *             properties:
  *               status:
- *                 type: string 
- *                 description: Estado del levantamiento
- *               notificado:
+ *                 type: string
+ *                 enum: [NO REVISADO, APROBADO, RECHAZADO]
+ *                 description: Nuevo estado del aporte.
+ *               es_notificado:
  *                 type: boolean
- *                 description: Indica si se ha notificado al curador
+ *                 description: Indica si se realizó la notificación correspondiente.
  *               report:
- *                 type: string 
+ *                 type: string
+ *                 description: Comentario o motivo asociado con la revisión.
  *               user_id:
- *                 type: string 
- *                 description: ID del curador
+ *                 type: string
+ *                 format: email
+ *                 description: Correo del propietario, administrador o revisor.
  *     responses:
  *       200:
- *         description: OK
+ *         description: Estado del aporte actualizado correctamente.
  *         content:
  *           application/json:
  *             schema:
@@ -1388,26 +1572,68 @@ levantamientosController.listReviewer = async (req, res) => {
  *               properties:
  *                 status:
  *                   type: string
+ *                   example: ok
+ *                 message:
+ *                   type: string
+ *                   example: proyecto actualizado
+ *       400:
+ *         description: Identificador, estado o correo del revisor inválido.
+ *       403:
+ *         description: El usuario no tiene permisos o intenta revisar su propio aporte.
+ *       404:
+ *         description: Aporte no encontrado.
 */
 levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
   try {
-    // Actualiza el estado de notificado de un levantamiento
     if (!req.body.status)
       return res.status(400).send({ message: "Estado faltante" });
-    // if (!req.body.report)
-    //   return res.status(400).send({ message: "Reporte faltante" });
-    // if (!req.body.user_id)
-    //   return res.status(400).send({ message: "ID faltante" });
+    const reviewerEmail = normalizeEmail(req.body.user_id || req.body.curador_id);
+    const contributionId = Number(req.params.id);
 
-    values = [];
-    fields = [];
+    if (!reviewerEmail)
+      return res.status(400).send({ message: "Correo electrónico del revisor faltante" });
+    if (!Number.isInteger(contributionId) || contributionId <= 0)
+      return res.status(400).send({ message: "ID de aporte inválido" });
+    if (!REVIEW_STATUSES.has(req.body.status))
+      return res.status(400).send({ message: "Estado de aporte inválido" });
+
+    // Repite la autorización en escritura; el filtro del listado no es una barrera de seguridad.
+    const { rows: authorizedRows } = await databasePool.query({
+      text: `
+        SELECT l.id
+        FROM public.levantamientos l
+        INNER JOIN public.proyectos p ON p.id = l.id_proyecto
+        WHERE l.id = $1
+          AND l.usuario_id <> $2
+          AND (
+            p.id_propietario = $2
+            OR EXISTS (
+              SELECT 1
+              FROM public.proyectos_usuarios pu
+              WHERE pu.proyecto_id = l.id_proyecto
+                AND pu.correo = $2
+                AND pu.rol IN ('administrar', 'revisar')
+            )
+          )
+        LIMIT 1
+      `,
+      values: [contributionId, reviewerEmail]
+    });
+
+    if (!authorizedRows.length)
+      return res.status(403).send({
+        message: "No tienes permiso para revisar este aporte o es un aporte propio"
+      });
+
+    const values = [];
+    const fields = [];
     let index = 1;
 
     values.push(req.body.status)
     fields.push(`status = $${index++}`)
 
-    if(req.body.curador_id){
-      values.push(req.body.curador_id)
+    if (req.body.status === "APROBADO" || req.body.status === "RECHAZADO") {
+      values.push(reviewerEmail)
       fields.push(`id_curador = $${index++}`)
 
       values.push(new Date())
@@ -1449,7 +1675,7 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     }
 
     let whereClause = `WHERE id = $${index++}`;
-    values.push(req.params.id);
+    values.push(contributionId);
 
     // Si hay respuestas, forzar validación por usuario_id
     if (req.body.respuestas) {
@@ -1464,6 +1690,7 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
       UPDATE public.levantamientos
       SET ${fields.join(", ")}
       ${whereClause}
+      RETURNING id
     `;
 
     const updateSql = {
@@ -1473,6 +1700,9 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
 
     // Ejecuta la consulta de actualizaci n
     const { rows } = await databasePool.query(updateSql);
+
+    if (!rows.length)
+      return res.status(404).send({ message: "Aporte no encontrado" });
 
     // Devuelve una respuesta con el estado de la operaci n
     return res.status(200).send({
