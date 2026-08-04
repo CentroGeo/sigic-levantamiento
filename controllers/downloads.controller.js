@@ -10,11 +10,13 @@ const downloadsController = {};
 const DOWNLOAD_STATUSES = new Set(['NO REVISADO', 'APROBADO', 'RECHAZADO']);
 const DOWNLOAD_PAGE_SIZE = 12;
 
+/** Normaliza la página solicitada y evita valores negativos o no numéricos. */
 function normalizePage(value) {
 	const page = Number.parseInt(value, 10);
 	return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
+/** Genera ubicaciones compatibles con rutas almacenadas por versiones anteriores. */
 function downloadFileCandidates(storedPath) {
 	const fileName = path.basename(storedPath);
 	// Conserva compatibilidad con archivos heredados guardados antes de usar /downloads.
@@ -24,6 +26,7 @@ function downloadFileCandidates(storedPath) {
 	];
 }
 
+/** Localiza de forma segura el ZIP persistido que corresponde a una solicitud. */
 async function findDownloadFile(storedPath) {
 	for (const candidate of downloadFileCandidates(storedPath)) {
 		try {

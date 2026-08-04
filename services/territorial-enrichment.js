@@ -2,6 +2,7 @@ const { Pool } = require('pg');
 
 let geodataPool;
 
+/** Crea bajo demanda una conexión limitada al catálogo geográfico configurado. */
 function getGeodataPool() {
   const rawUrl = String(process.env.GEODATABASE_URL || '').trim();
   if (!rawUrl) return null;
@@ -16,6 +17,7 @@ function getGeodataPool() {
   return geodataPool;
 }
 
+/** Comprueba que las coordenadas pertenezcan al dominio geográfico de EPSG:4326. */
 function validCoordinates(longitude, latitude) {
   return (
     Number.isFinite(longitude) &&
@@ -27,11 +29,16 @@ function validCoordinates(longitude, latitude) {
   );
 }
 
+/** Corrige texto UTF-8 que fue interpretado previamente como Latin-1. */
 function repairEncoding(value) {
   const text = String(value || '');
   return /(?:Ã.|Â.)/.test(text) ? Buffer.from(text, 'latin1').toString('utf8') : text;
 }
 
+/**
+ * Completa entidad, municipio y claves INEGI mediante una consulta punto-en-polígono.
+ * Si el catálogo no está configurado o no responde, conserva el aporte original.
+ */
 async function enrichContributionTerritory(contribution) {
   const longitude = Number(contribution.longitud);
   const latitude = Number(contribution.latitud);

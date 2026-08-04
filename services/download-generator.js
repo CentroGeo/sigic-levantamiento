@@ -18,6 +18,7 @@ const { enrichContributionTerritory } = require('./territorial-enrichment');
 
 const SUPPORTED_FORMATS = new Set(['xlsx', 'csv', 'geojson', 'gpkg']);
 
+/** Normaliza alias y rechaza formatos generales que el generador no soporta. */
 function normalizeFormat(value) {
   const format = String(value || 'xlsx').toLowerCase();
   if (format === 'geopackage') return 'gpkg';
@@ -29,6 +30,7 @@ function normalizeFormat(value) {
   return format;
 }
 
+/** Convierte filas normalizadas en puntos GeoJSON con referencia EPSG:4326. */
 function createGeoJson(rows) {
   return {
     type: 'FeatureCollection',
@@ -49,6 +51,7 @@ function createGeoJson(rows) {
   };
 }
 
+/** Ejecuta GDAL para convertir el GeoJSON temporal en una capa GeoPackage. */
 function runOgr2Ogr(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     const process = spawn('ogr2ogr', [
@@ -74,6 +77,10 @@ function runOgr2Ogr(inputPath, outputPath) {
   });
 }
 
+/**
+ * Construye el archivo principal de resultados en el formato solicitado.
+ * Los archivos intermedios se escriben exclusivamente en el directorio temporal.
+ */
 async function createResultFile(format, rows, tempDir) {
   const worksheet = XLSX.utils.json_to_sheet(rows);
 
@@ -111,6 +118,10 @@ async function createResultFile(format, rows, tempDir) {
   };
 }
 
+/**
+ * Incorpora al ZIP los archivos físicos asociados con los aportes aprobados.
+ * Las rutas inválidas o inexistentes se omiten sin interrumpir los demás datos.
+ */
 async function addMedia(zip, contributions, uploadsRoot) {
   // Mantiene una estructura uniforme y evita colisiones prefijando el ID del aporte.
   const mediaFolder = zip.folder('multimedia');
@@ -137,6 +148,13 @@ async function addMedia(zip, contributions, uploadsRoot) {
   return included;
 }
 
+/**
+ * Genera y persiste el paquete general de un proyecto.
+ *
+ * El ZIP contiene el resultado tabular o geográfico, su diccionario de datos y,
+ * cuando se solicita, los archivos multimedia disponibles de cada aporte.
+ * El enriquecimiento territorial es complementario y no bloquea la exportación.
+ */
 async function generateDownload({
   contributions,
   format,

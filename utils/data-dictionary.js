@@ -24,6 +24,7 @@ const FIELD_DESCRIPTIONS = {
   ],
 };
 
+/** Obtiene las descripciones y fuentes de las preguntas dinámicas de una ficha. */
 function questionDescriptions(contribution) {
   const parsed = parseJson(contribution?.respuestas_ficha, {});
   const questions = Array.isArray(parsed) ? parsed : Object.values(parsed);
@@ -38,12 +39,14 @@ function questionDescriptions(contribution) {
   }, {});
 }
 
+/** Traduce tipos JavaScript a etiquetas comprensibles para personas usuarias. */
 function fieldType(value) {
   if (typeof value === 'boolean') return 'booleano';
   if (typeof value === 'number') return Number.isInteger(value) ? 'entero' : 'decimal';
   return 'texto';
 }
 
+/** Escapa un valor conforme a las reglas de serialización CSV. */
 function csvValue(value) {
   const text = String(value ?? '');
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;

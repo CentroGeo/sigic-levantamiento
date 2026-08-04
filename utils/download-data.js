@@ -1,5 +1,6 @@
 const path = require('path');
 
+/** Interpreta valores JSON almacenados como texto sin interrumpir la exportación. */
 function parseJson(value, fallback) {
   if (value === null || value === undefined || value === '') return fallback;
   if (typeof value === 'object') return value;
@@ -11,6 +12,7 @@ function parseJson(value, fallback) {
   }
 }
 
+/** Convierte valores compuestos en representaciones escalares aptas para archivos SIG. */
 function scalarValue(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -25,6 +27,7 @@ function scalarValue(value) {
   return JSON.stringify(value);
 }
 
+/** Genera un nombre estable para cada respuesta del formulario dinámico. */
 function answerLabel(question, index) {
   const id = question?.id_pregunta ?? question?.id ?? index + 1;
   const text = question?.texto ?? question?.pregunta ?? question?.label ?? 'respuesta';
@@ -36,6 +39,7 @@ function answerLabel(question, index) {
     .toLowerCase()}`;
 }
 
+/** Aplana las respuestas de la ficha para incorporarlas como atributos del aporte. */
 function flattenAnswers(rawAnswers) {
   const parsed = parseJson(rawAnswers, {});
   const questions = Array.isArray(parsed) ? parsed : Object.values(parsed);
@@ -47,6 +51,7 @@ function flattenAnswers(rawAnswers) {
   }, {});
 }
 
+/** Estandariza los campos comunes y las respuestas antes de exportarlos. */
 function normalizeContribution(row) {
   const userData = parseJson(row.datos_usuario, {});
 
@@ -72,6 +77,7 @@ function normalizeContribution(row) {
   };
 }
 
+/** Normaliza las variantes históricas con las que se almacenó la multimedia. */
 function normalizeMedia(rawMedia) {
   const parsed = parseJson(rawMedia, []);
   if (!Array.isArray(parsed)) return [];
@@ -86,6 +92,7 @@ function normalizeMedia(rawMedia) {
     .filter((item) => item.filePath);
 }
 
+/** Construye un nombre seguro y legible para un archivo multimedia exportado. */
 function mediaExportFileName(media, index, prefix = '') {
   const extension = path.extname(media.originalName || media.fileName || media.filePath || '');
   const baseName = safeFilename(
@@ -98,12 +105,14 @@ function mediaExportFileName(media, index, prefix = '') {
   return `${prefix}${baseName}${extension}`;
 }
 
+/** Devuelve las rutas relativas que se escriben dentro del archivo de resultados. */
 function mediaReferences(rawMedia, prefix = '') {
   return normalizeMedia(rawMedia).map(
     (media, index) => `multimedia/${mediaExportFileName(media, index, prefix)}`
   );
 }
 
+/** Elimina caracteres no portables para producir nombres de archivo seguros. */
 function safeFilename(value, fallback = 'archivo') {
   const normalized = String(value || fallback)
     .normalize('NFD')
@@ -115,6 +124,10 @@ function safeFilename(value, fallback = 'archivo') {
   return normalized || fallback;
 }
 
+/**
+ * Resuelve una referencia multimedia dentro del volumen autorizado de uploads.
+ * Devuelve null ante intentos de traversal o rutas fuera del directorio permitido.
+ */
 function resolveMediaPath(filePath, uploadsRoot) {
   const absoluteUploadsRoot = path.resolve(uploadsRoot);
   const normalizedInput = String(filePath).replace(/\\/g, '/').replace(/^\.\//, '');

@@ -22,10 +22,12 @@ const levantamientosController = {};
 const REVIEW_STATUSES = new Set(["NO REVISADO", "APROBADO", "RECHAZADO"]);
 const REVIEW_PAGE_SIZE = 12;
 
+/** Normaliza el correo utilizado en las validaciones de acceso a aportes. */
 function normalizeEmail(value) {
   return String(value || "").trim();
 }
 
+/** Normaliza la paginación de los paneles administrativos de aportes. */
 function normalizePage(value) {
   const page = Number.parseInt(value, 10);
   return Number.isInteger(page) && page > 0 ? page : 1;

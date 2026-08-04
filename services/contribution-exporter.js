@@ -16,6 +16,7 @@ const { enrichContributionTerritory } = require('./territorial-enrichment');
 
 const SUPPORTED_FORMATS = new Set(['geojson', 'kml', 'shapefile']);
 
+/** Normaliza los alias admitidos para las exportaciones de un aporte individual. */
 function normalizeContributionFormat(value) {
   const format = String(value || '').toLowerCase();
   const aliases = { shp: 'shapefile', shape: 'shapefile' };
@@ -41,6 +42,7 @@ const SHAPEFILE_NAMES = {
   datos_usuario: 'dat_usuario',
 };
 
+/** Construye una colección GeoJSON puntual y aplica nombres de campo alternativos. */
 function contributionGeoJson(row, fieldNames = {}) {
   if (!Number.isFinite(row.longitud) || !Number.isFinite(row.latitud)) {
     const error = new Error('El aporte no tiene coordenadas válidas');
@@ -72,6 +74,10 @@ function contributionGeoJson(row, fieldNames = {}) {
   };
 }
 
+/**
+ * Produce nombres únicos de hasta diez caracteres, límite del formato DBF que
+ * acompaña a un Shapefile, preservando la relación en el diccionario de datos.
+ */
 function uniqueShapefileNames(fields) {
   const used = new Set();
   const result = {};
@@ -98,6 +104,7 @@ function uniqueShapefileNames(fields) {
   return result;
 }
 
+/** Ejecuta una conversión de GDAL y propaga un error legible si esta falla. */
 function runOgr2Ogr(args) {
   return new Promise((resolve, reject) => {
     const process = spawn('ogr2ogr', args);
@@ -114,6 +121,7 @@ function runOgr2Ogr(args) {
   });
 }
 
+/** Agrega al ZIP todos los archivos que componen el Shapefile generado. */
 async function addDirectory(zip, directory) {
   const files = await fsp.readdir(directory);
 
@@ -122,6 +130,7 @@ async function addDirectory(zip, directory) {
   }
 }
 
+/** Agrega la multimedia disponible y mantiene la carpeta aun cuando esté vacía. */
 async function addMedia(zip, contribution, uploadsRoot) {
   // La carpeta forma parte del contrato del ZIP, incluso si el aporte no tiene archivos.
   const mediaFolder = zip.folder('multimedia');
@@ -148,6 +157,10 @@ async function addMedia(zip, contribution, uploadsRoot) {
   return included;
 }
 
+/**
+ * Genera el paquete ZIP de un aporte en GeoJSON, KML o Shapefile.
+ * El paquete conserva una estructura uniforme con diccionario y multimedia.
+ */
 async function generateContributionExport(contribution, requestedFormat, uploadsRoot) {
   const format = normalizeContributionFormat(requestedFormat);
   const enrichedContribution = await enrichContributionTerritory(contribution);
