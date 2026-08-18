@@ -15,6 +15,7 @@ router.post("/user/list", levantamientosController.listUser);
 router.post("/user/create", filer.arrayUpload("media", 10), levantamientosController.createLevantamiento);
 router.put("/user/update/:id", filer.arrayUpload("media", 10), levantamientosController.updateLevantamiento);
 router.delete("/user/register/:id", levantamientosController.deleteLevantamiento);
+router.get("/:id/export", levantamientosController.exportContribution);
 
 router.post('/user/register/v2', levantamientosController.getRegisterV2);
 //router.post('/user/register', levantamientosController.getRegister);

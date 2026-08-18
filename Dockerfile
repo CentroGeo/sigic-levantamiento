@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# GDAL proporciona ogr2ogr, utilizado para generar GeoPackage, KML y Shapefile.
+RUN apk add --no-cache gdal-tools
+
 COPY package*.json ./
 RUN npm install
 COPY . .
