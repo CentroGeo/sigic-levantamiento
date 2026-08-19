@@ -4,6 +4,7 @@ const router = express.Router();
 const projectsController = require('../controllers/projects.controller');
 const Authenticator = require("../helpers/Authenticator");
 const Filer = require('../helpers/Filer');
+const { validarToken } = require('../middleware/auth');
 
 const auth = new Authenticator();
 const filer = new Filer("proyectos", "imagen");
@@ -26,10 +27,10 @@ router.delete('/shared/:project/user/:user_id/remove', projectsController.shared
 router.post('/shared/:project/user/:user_id/update', projectsController.sharedProjectsUserUpdate);
 
 //Apis para las vistas de revisores
-router.post('/reviewer/list', projectsController.reviewerProjects);
+router.post('/reviewer/list', validarToken, projectsController.reviewerProjects);
 
 //Api para cambiar status de los proyectos
-router.post('/reviewer/status/:id', projectsController.reviewerProjectsStatus);
+router.post('/reviewer/status/:id', validarToken, projectsController.reviewerProjectsStatus);
 
 //Api para eliminar sin no se utiliza
 router.post('/raising/:project/list', projectsController.raisingProjectsUserList);
