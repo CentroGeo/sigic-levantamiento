@@ -20,6 +20,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /*********** Sección API de Proyectos *****************/
 
 /**
+ * Devuelve el detalle visible de un proyecto público, su resumen de aportes y
+ * las coordenadas publicables que alimentan el mapa.
  * @swagger
  * /projects/public:
  *   get:
@@ -129,6 +131,279 @@ projectsController.publicProjects = async (req, res) => {
     return res.status(400).send({ message: error.message });
   }
 
+};
+
+/**
+ * Devuelve la ficha pública de un aporte aprobado. La consulta deliberadamente
+ * omite ubicación, datos personales y archivos multimedia.
+ * @swagger
+ * /projects/public/{id}:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: Obtener el detalle de un proyecto público
+ *     description: Devuelve la información general, el resumen de aportes y las coordenadas públicas que alimentan el mapa.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del proyecto
+ *     responses:
+ *       200:
+ *         description: Detalle del proyecto público
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 proyecto:
+ *                   type: object
+ *                 resumen:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     aprobados:
+ *                       type: integer
+ *                     revision:
+ *                       type: integer
+ *                     rechazados:
+ *                       type: integer
+ *                 aportes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       latitud:
+ *                         type: number
+ *                       longitud:
+ *                         type: number
+ *       400:
+ *         description: Identificador inválido
+ *       404:
+ *         description: Proyecto público no encontrado
+ *       500:
+ *         description: Error al cargar el proyecto
+ */
+projectsController.publicProjectDetail = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+
+    if (!Number.isInteger(projectId) || projectId <= 0) {
+      return res.status(400).send({ message: "ID de proyecto inválido" });
+    }
+
+    const [{ rows: projects }, { rows: summaryRows }, { rows: contributions }] =
+      await Promise.all([
+        databasePool.query({
+          text: `
+            SELECT p.*,
+              p.region AS ruta,
+              CONCAT('apidev/', REPLACE(p.imagen, './', '')) AS path_media_folder
+            FROM public.proyectos p
+            WHERE p.id = $1
+              AND p.es_privada = false
+              AND p.activo = true
+            LIMIT 1
+          `,
+          values: [projectId],
+        }),
+        databasePool.query({
+          text: `
+            SELECT
+              COUNT(*)::integer AS total,
+              COUNT(*) FILTER (WHERE status = 'APROBADO')::integer AS aprobados,
+              COUNT(*) FILTER (WHERE status IN ('EN REVISION', 'EN REVISIÓN'))::integer AS revision,
+              COUNT(*) FILTER (WHERE status = 'RECHAZADO')::integer AS rechazados
+            FROM public.levantamientos
+            WHERE id_proyecto = $1
+          `,
+          values: [projectId],
+        }),
+        databasePool.query({
+          text: `
+            SELECT id, latitud, longitud
+            FROM public.levantamientos
+            WHERE id_proyecto = $1
+              AND status = 'APROBADO'
+              AND COALESCE(ubicacion_sensible, false) = false
+              AND COALESCE(ocultar_ficha, false) = false
+              AND latitud BETWEEN -90 AND 90
+              AND longitud BETWEEN -180 AND 180
+          `,
+          values: [projectId],
+        }),
+      ]);
+
+    if (!projects.length) {
+      return res.status(404).send({ message: "Proyecto público no encontrado" });
+    }
+
+    return res.status(200).send({
+      proyecto: projects[0],
+      resumen: summaryRows[0],
+      aportes: contributions,
+    });
+  } catch (error) {
+    return res.status(500).send({ message: "No fue posible cargar el proyecto público" });
+  }
+};
+
+/**
+ * @swagger
+ * /projects/public/{id}/contributions/{contributionId}:
+ *   get:
+ *     tags: [Proyectos]
+ *     summary: Obtener la ficha pública de un aporte
+ *     description: Devuelve respuestas y multimedia válida de un aporte aprobado y visible. No expone coordenadas, datos personales ni rutas internas.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del proyecto
+ *       - in: path
+ *         name: contributionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Identificador del aporte
+ *     responses:
+ *       200:
+ *         description: Ficha pública del aporte
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 fecha:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                 multimedia:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       tipo:
+ *                         type: string
+ *                         enum: [image, audio, video]
+ *                       mime:
+ *                         type: string
+ *                       url:
+ *                         type: string
+ *                       descripcion:
+ *                         type: string
+ *                 respuestas:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Identificador inválido
+ *       404:
+ *         description: Ficha pública no encontrada
+ *       500:
+ *         description: Error al cargar la ficha
+ */
+projectsController.publicContributionDetail = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const contributionId = Number(req.params.contributionId);
+
+    if (
+      !Number.isInteger(projectId) ||
+      projectId <= 0 ||
+      !Number.isInteger(contributionId) ||
+      contributionId <= 0
+    ) {
+      return res.status(400).send({ message: "Identificador inválido" });
+    }
+
+    const { rows } = await databasePool.query({
+      text: `
+        SELECT l.id, l.fecha_levantamiento, l.respuestas_ficha::json AS respuestas_ficha,
+          l.media_array
+        FROM public.levantamientos l
+        INNER JOIN public.proyectos p ON p.id = l.id_proyecto
+        WHERE l.id = $1
+          AND l.id_proyecto = $2
+          AND l.status = 'APROBADO'
+          AND COALESCE(l.ocultar_ficha, false) = false
+          AND p.es_privada = false
+          AND p.activo = true
+        LIMIT 1
+      `,
+      values: [contributionId, projectId],
+    });
+
+    if (!rows.length) {
+      return res.status(404).send({ message: "Ficha pública no encontrada" });
+    }
+
+    const rawAnswers = rows[0].respuestas_ficha;
+    const answers = rawAnswers && typeof rawAnswers === "object" ? Object.values(rawAnswers) : [];
+    const publicAnswers = answers.filter(
+      (answer) => answer && String(answer.tipo || "").toLowerCase() !== "multimedia"
+    );
+    const multimediaQuestions = answers.filter(
+      (answer) => answer && String(answer.tipo || "").toLowerCase() === "multimedia"
+    );
+
+    let mediaFiles = [];
+    try {
+      mediaFiles = Array.isArray(rows[0].media_array)
+        ? rows[0].media_array
+        : JSON.parse(rows[0].media_array || "[]");
+    } catch {
+      mediaFiles = [];
+    }
+
+    const allowedMimeType = /^(image\/(jpeg|png|webp|gif)|audio\/(mpeg|mp4|ogg|wav|webm)|video\/(mp4|webm|ogg))$/i;
+    const publicMedia = mediaFiles.reduce((result, file, index) => {
+      const mimeType = String(file?.mimetype || file?.mimeType || "").toLowerCase();
+      const normalizedPath = String(file?.path || "")
+        .replaceAll("\\", "/")
+        .replace(/^\.\//, "")
+        .replace(/\/{2,}/g, "/");
+
+      if (
+        !allowedMimeType.test(mimeType) ||
+        !normalizedPath.startsWith("uploads/levantamientos/") ||
+        normalizedPath.includes("..") ||
+        !fs.existsSync(path.resolve(normalizedPath))
+      ) {
+        return result;
+      }
+
+      const question = multimediaQuestions[index];
+      result.push({
+        tipo: mimeType.split("/")[0],
+        mime: mimeType,
+        url: `/${normalizedPath}`,
+        descripcion:
+          question?.pregunta || question?.instrucciones || `Evidencia multimedia ${index + 1}`,
+      });
+      return result;
+    }, []);
+
+    return res.status(200).send({
+      id: rows[0].id,
+      fecha: rows[0].fecha_levantamiento,
+      multimedia: publicMedia,
+      respuestas: publicAnswers,
+    });
+  } catch (error) {
+    return res.status(500).send({ message: "No fue posible cargar la ficha del aporte" });
+  }
 };
 
 /**
