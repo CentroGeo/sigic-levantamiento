@@ -11,6 +11,8 @@ const filer = new Filer("proyectos", "imagen");
 
 //Apis para las vista de usuario 
 router.get('/public', projectsController.publicProjects);
+router.get('/public/:id/contributions/:contributionId', projectsController.publicContributionDetail);
+router.get('/public/:id', projectsController.publicProjectDetail);
 router.post('/own', projectsController.ownprojects);
 router.post('/shared', projectsController.sharedProjects);
 
