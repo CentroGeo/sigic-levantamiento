@@ -1321,7 +1321,7 @@ projectsController.raisingProjectsUserList = async (req, res) => {
  */
 projectsController.reviewerProjects = async (req, res) => {
   try {
-    const userEmail = req.body.email;
+    const userEmail = req.userEmail;
 
     if (!userEmail) {
       return res.status(400).send({ message: "Correo electr nico faltante" });
@@ -1332,7 +1332,22 @@ projectsController.reviewerProjects = async (req, res) => {
     const offset = (page - 1) * limit;
     const status = req.body.status || '';
 
-    // Obtiene la lista de proyectos pendientes de revisi n de un usuario
+    const accessFilter = req.isLevantamientoAdmin
+      ? ''
+      : `AND (
+          l.id_propietario = $4
+          OR EXISTS (
+            SELECT 1
+            FROM public.proyectos_usuarios pu
+            WHERE pu.proyecto_id = l.id
+              AND LOWER(pu.correo) = $4
+              AND pu.rol IN ('administrar', 'revisar')
+          )
+        )`;
+    const countAccessFilter = accessFilter.replaceAll('$4', '$2');
+
+    // El administrador global ve todos los proyectos; los demás conservan
+    // el alcance concedido por propiedad o participación en cada proyecto.
     const query = `
       SELECT l.*,
             l.region AS ruta,
@@ -1342,6 +1357,7 @@ projectsController.reviewerProjects = async (req, res) => {
       FROM public.proyectos AS l
       LEFT JOIN public.levantamientos l2 on l2.id_proyecto = l.id
       WHERE l.status = $1
+      ${accessFilter}
       GROUP BY l.id
       ORDER BY l.id DESC
       LIMIT  $2
@@ -1353,11 +1369,20 @@ projectsController.reviewerProjects = async (req, res) => {
       SELECT COUNT(*) AS total
       FROM public.proyectos AS l
       WHERE l.status = $1
+      ${countAccessFilter}
     `;
 
     const [{ rows: proyectos }, { rows: countRows }] = await Promise.all([
-      databasePool.query({ text: query, values: [status, limit, offset] }),
-      databasePool.query({ text: countQuery, values: [status] })
+      databasePool.query({
+        text: query,
+        values: req.isLevantamientoAdmin
+          ? [status, limit, offset]
+          : [status, limit, offset, userEmail]
+      }),
+      databasePool.query({
+        text: countQuery,
+        values: req.isLevantamientoAdmin ? [status] : [status, userEmail]
+      })
     ]);
 
     const total = parseInt(countRows[0].total, 12);
@@ -1426,10 +1451,31 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
       return res.status(400).send({ message: "Estado faltante" });
     if (!PROJECT_STATUSES.has(req.body.status))
       return res.status(400).send({ message: "Estado de proyecto no válido" });
-    // if (!req.body.report)
-    //   return res.status(400).send({ message: "Reporte faltante" });
-    // if (!req.body.user_id)
-    //   return res.status(400).send({ message: "ID faltante" });
+
+    // Valida que revisores no administradores sean propietarios o colaboradores autorizados del proyecto
+    if (!req.isLevantamientoAdmin) {
+      const { rows: authorizedRows } = await databasePool.query({
+        text: `
+          SELECT p.id
+          FROM public.proyectos p
+          WHERE p.id = $1
+            AND (
+              p.id_propietario = $2
+              OR EXISTS (
+                SELECT 1
+                FROM public.proyectos_usuarios pu
+                WHERE pu.proyecto_id = p.id
+                  AND LOWER(pu.correo) = $2
+                  AND pu.rol IN ('administrar', 'revisar')
+              )
+            )
+          LIMIT 1
+        `,
+        values: [req.params.id, req.userEmail]
+      });
+      if (!authorizedRows.length)
+        return res.status(403).send({ message: "No tienes permiso para revisar este proyecto" });
+    }
     
     const values = [];
     const fields = [];
@@ -1445,8 +1491,8 @@ projectsController.reviewerProjectsStatus = async (req, res) => {
       fields.push('es_privada = true');
     }
 
-    if (req.body.user_id && ['APROBADO', 'RECHAZADO'].includes(req.body.status)) {
-      values.push(req.body.user_id)
+    if (['APROBADO', 'RECHAZADO'].includes(req.body.status)) {
+      values.push(req.userEmail)
       fields.push(`id_curador = $${index++}`)
 
       values.push(new Date())
