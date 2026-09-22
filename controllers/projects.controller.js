@@ -17,6 +17,23 @@ const PROJECT_STATUSES = new Set(['SIN EVALUAR', 'EN REVISION', 'APROBADO', 'REC
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const PROJECT_FIELD_LABELS = {
+  nombre: 'Nombre del proyecto',
+  institucion: 'Institución',
+  lider: 'Líder del proyecto',
+  instrucciones: 'Instrucciones para participantes',
+  status: 'Estado',
+  comentario_curador: 'Comentario del curador',
+  comentario_usuario: 'Comentario del usuario',
+};
+const PROJECT_FIELD_MAX_LENGTH = 255;
+
+function findFieldExceedingMaxLength(fields) {
+  return Object.keys(PROJECT_FIELD_LABELS).find(
+    (field) => typeof fields[field] === 'string' && fields[field].length > PROJECT_FIELD_MAX_LENGTH
+  );
+}
+
 /*********** Sección API de Proyectos *****************/
 
 /**
@@ -867,6 +884,13 @@ projectsController.createProject = async (req, res) => {
       es_privada: true,
     };
 
+    const campoDemasiadoLargo = findFieldExceedingMaxLength(fields);
+    if (campoDemasiadoLargo) {
+      return res.status(400).send({
+        message: `El campo "${PROJECT_FIELD_LABELS[campoDemasiadoLargo]}" no puede superar ${PROJECT_FIELD_MAX_LENGTH} caracteres.`,
+      });
+    }
+
     const filteredEntries = Object.entries(fields)
       .filter(([_, value]) => value !== null && value !== undefined);
 
@@ -1001,6 +1025,13 @@ projectsController.updateProject = async (req, res) => {
       es_institucion: esInstitucion,
       es_privada: req.body.isPrivate !== undefined ? !!req.body.isPrivate : undefined,
     };
+
+    const campoDemasiadoLargo = findFieldExceedingMaxLength(fields);
+    if (campoDemasiadoLargo) {
+      return res.status(400).send({
+        message: `El campo "${PROJECT_FIELD_LABELS[campoDemasiadoLargo]}" no puede superar ${PROJECT_FIELD_MAX_LENGTH} caracteres.`,
+      });
+    }
 
     const filteredEntries = Object.entries(fields)
       .filter(([_, value]) => value !== null && value !== undefined);
