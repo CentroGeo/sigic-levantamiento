@@ -34,6 +34,21 @@ function findFieldExceedingMaxLength(fields) {
   );
 }
 
+// objetivo es columna TEXT (sin tope real en la base de datos); este límite es
+// solo a nivel de aplicación, para evitar textos desproporcionados.
+const PROJECT_LONG_TEXT_FIELD_LABELS = {
+  objetivo: 'Objetivo del proyecto',
+};
+const PROJECT_LONG_TEXT_FIELD_MAX_LENGTH = 2500;
+
+function findLongTextFieldExceedingMaxLength(fields) {
+  return Object.keys(PROJECT_LONG_TEXT_FIELD_LABELS).find(
+    (field) =>
+      typeof fields[field] === 'string' &&
+      fields[field].length > PROJECT_LONG_TEXT_FIELD_MAX_LENGTH
+  );
+}
+
 /*********** Sección API de Proyectos *****************/
 
 /**
@@ -891,6 +906,13 @@ projectsController.createProject = async (req, res) => {
       });
     }
 
+    const campoLargoDemasiadoLargo = findLongTextFieldExceedingMaxLength(fields);
+    if (campoLargoDemasiadoLargo) {
+      return res.status(400).send({
+        message: `El campo "${PROJECT_LONG_TEXT_FIELD_LABELS[campoLargoDemasiadoLargo]}" no puede superar ${PROJECT_LONG_TEXT_FIELD_MAX_LENGTH} caracteres.`,
+      });
+    }
+
     const filteredEntries = Object.entries(fields)
       .filter(([_, value]) => value !== null && value !== undefined);
 
@@ -1030,6 +1052,13 @@ projectsController.updateProject = async (req, res) => {
     if (campoDemasiadoLargo) {
       return res.status(400).send({
         message: `El campo "${PROJECT_FIELD_LABELS[campoDemasiadoLargo]}" no puede superar ${PROJECT_FIELD_MAX_LENGTH} caracteres.`,
+      });
+    }
+
+    const campoLargoDemasiadoLargo = findLongTextFieldExceedingMaxLength(fields);
+    if (campoLargoDemasiadoLargo) {
+      return res.status(400).send({
+        message: `El campo "${PROJECT_LONG_TEXT_FIELD_LABELS[campoLargoDemasiadoLargo]}" no puede superar ${PROJECT_LONG_TEXT_FIELD_MAX_LENGTH} caracteres.`,
       });
     }
 
