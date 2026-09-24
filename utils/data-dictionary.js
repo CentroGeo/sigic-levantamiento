@@ -98,4 +98,4 @@ function createDataDictionary(contributions, row, format, fieldNames = {}) {
   return Buffer.from(`\uFEFF${lines.join('\r\n')}\r\n`, 'utf8');
 }
 
-module.exports = { createDataDictionary };
+module.exports = { createDataDictionary, FIELD_DESCRIPTIONS, questionDescriptions };

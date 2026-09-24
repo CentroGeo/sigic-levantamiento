@@ -5,6 +5,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const JSZip = require('jszip');
 const XLSX = require('xlsx');
+const PDFDocument = require('pdfkit');
 const {
   normalizeContribution,
   mediaExportFileName,
@@ -13,10 +14,10 @@ const {
   resolveMediaPath,
   safeFilename,
 } = require('../utils/download-data');
-const { createDataDictionary } = require('../utils/data-dictionary');
+const { createDataDictionary, FIELD_DESCRIPTIONS, questionDescriptions } = require('../utils/data-dictionary');
 const { enrichContributionTerritory } = require('./territorial-enrichment');
 
-const SUPPORTED_FORMATS = new Set(['xlsx', 'csv', 'geojson', 'gpkg']);
+const SUPPORTED_FORMATS = new Set(['xlsx', 'csv', 'geojson', 'gpkg', 'pdf']);
 
 /** Normaliza alias y rechaza formatos generales que el generador no soporta. */
 function normalizeFormat(value) {
@@ -77,11 +78,49 @@ function runOgr2Ogr(inputPath, outputPath) {
   });
 }
 
+function formatFieldValue(value) {
+  if (value === null || value === undefined || value === '') return 'Sin dato';
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  return String(value);
+}
+
+function createPdfReport(rows, contributions, projectName) {
+  const descriptions = contributions.reduce(
+    (result, contribution) => ({ ...result, ...questionDescriptions(contribution) }),
+    { ...FIELD_DESCRIPTIONS }
+  );
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50 });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    doc.fontSize(18).text(`Reporte de aportaciones: ${projectName || 'Proyecto'}`);
+    doc.moveDown(0.5);
+    doc.fontSize(11).text(`Total de aportaciones: ${rows.length}`);
+    doc.text(`Fecha de generación: ${new Date().toLocaleString('es-MX')}`);
+
+    rows.forEach((row, index) => {
+      doc.addPage();
+      doc.fontSize(14).text(`Aporte ${row.id ?? index + 1}`, { underline: true });
+      doc.moveDown(0.5);
+      Object.entries(row).forEach(([field, value]) => {
+        const [label] = descriptions[field] || [field];
+        doc.fontSize(10).text(`${label}: ${formatFieldValue(value)}`);
+      });
+    });
+
+    doc.end();
+  });
+}
+
 /**
  * Construye el archivo principal de resultados en el formato solicitado.
  * Los archivos intermedios se escriben exclusivamente en el directorio temporal.
  */
-async function createResultFile(format, rows, tempDir) {
+async function createResultFile(format, rows, tempDir, context = {}) {
   const worksheet = XLSX.utils.json_to_sheet(rows);
 
   if (format === 'xlsx') {
@@ -97,6 +136,13 @@ async function createResultFile(format, rows, tempDir) {
     return {
       name: 'resultados.csv',
       data: Buffer.from(`\uFEFF${XLSX.utils.sheet_to_csv(worksheet)}`, 'utf8'),
+    };
+  }
+
+  if (format === 'pdf') {
+    return {
+      name: 'reporte.pdf',
+      data: await createPdfReport(rows, context.contributions || [], context.projectName),
     };
   }
 
@@ -177,7 +223,10 @@ async function generateDownload({
   const tempDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'levantamiento-download-'));
 
   try {
-    const resultFile = await createResultFile(selectedFormat, normalizedRows, tempDir);
+    const resultFile = await createResultFile(selectedFormat, normalizedRows, tempDir, {
+      contributions: enrichedContributions,
+      projectName,
+    });
     const zip = new JSZip();
     zip.file(resultFile.name, resultFile.data);
     const dictionaryRow = normalizedRows.reduce(
