@@ -16,6 +16,27 @@ const PROJECT_ROLES = new Set(['administrar', 'revisar', 'aporta', 'ver']);
 const PROJECT_STATUSES = new Set(['SIN EVALUAR', 'EN REVISION', 'APROBADO', 'RECHAZADO']);
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PROJECT_CLASSIFICATION_MAX_LENGTH = 50;
+
+function normalizeProjectClassification(value) {
+  return typeof value === "string" ? value.trim().toLocaleUpperCase("es-MX") : "";
+}
+
+function validateProjectClassification(institucion, categoria, requireAll = true) {
+  if ((requireAll || institucion !== undefined) && !institucion) {
+    return "Falta la institución a la que pertenece el proyecto";
+  }
+  if ((requireAll || categoria !== undefined) && !categoria) {
+    return "Falta la categoría del proyecto";
+  }
+  if (institucion?.length > PROJECT_CLASSIFICATION_MAX_LENGTH) {
+    return `La institución no puede superar ${PROJECT_CLASSIFICATION_MAX_LENGTH} caracteres`;
+  }
+  if (categoria?.length > PROJECT_CLASSIFICATION_MAX_LENGTH) {
+    return `La categoría no puede superar ${PROJECT_CLASSIFICATION_MAX_LENGTH} caracteres`;
+  }
+  return null;
+}
 
 const PROJECT_FIELD_LABELS = {
   nombre: 'Nombre del proyecto',
@@ -451,6 +472,7 @@ projectsController.publicContributionDetail = async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [nombre, categoria, institucion]
  *             properties:
  *               email:
  *                 type: string
@@ -827,9 +849,11 @@ projectsController.getRegisterProject = async (req, res) => {
  *                 description: Nombre del proyecto
  *               categoria:
  *                 type: string
+ *                 maxLength: 50
  *                 description: Categor&iacute;a del proyecto
  *               institucion:
  *                 type: string
+ *                 maxLength: 50
  *                 description: Instituci&oacute;n del proyecto
  *               file:
  *                 type: string
@@ -877,14 +901,19 @@ projectsController.createProject = async (req, res) => {
   if (!req.body.nombre)
     return res.status(400).send({ message: "Falta el nombre del proyecto" });
 
+  const institucion = normalizeProjectClassification(req.body.institucion);
+  const categoria = normalizeProjectClassification(req.body.categoria);
+  const classificationError = validateProjectClassification(institucion, categoria);
+  if (classificationError) return res.status(400).send({ message: classificationError });
+
   const url_first_image = req.file ? req.file.path : null;
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
   try {
     const fields = {
       nombre: req.body.nombre,
-      categoria: req.body.categoria,
-      institucion: req.body.institucion,
+      categoria,
+      institucion,
       imagen: url_first_image,
       activo: true,
       id_propietario: req.body.id_propietario,
@@ -978,9 +1007,11 @@ projectsController.createProject = async (req, res) => {
  *                 description: Nombre del proyecto
  *               categoria:
  *                 type: string
+ *                 maxLength: 50
  *                 description: Categor&iacute del proyecto
  *               institucion:
  *                 type: string
+ *                 maxLength: 50
  *                 description: Instituci&oacute;n del proyecto
  *               imagen:
  *                 type: string (optional)
@@ -1034,11 +1065,20 @@ projectsController.updateProject = async (req, res) => {
   console.log("update project");
   let esInstitucion = req.body.esInstitucion == "1" ? true : false;
 
+  const institucion =
+    req.body.institucion === undefined
+      ? undefined
+      : normalizeProjectClassification(req.body.institucion);
+  const categoria =
+    req.body.categoria === undefined ? undefined : normalizeProjectClassification(req.body.categoria);
+  const classificationError = validateProjectClassification(institucion, categoria, false);
+  if (classificationError) return res.status(400).send({ message: classificationError });
+
   try {
     const fields = {
       nombre: req.body.nombre,
-      categoria: req.body.categoria, // cambiar descripcion por categoria
-      institucion: req.body.institucion,
+      categoria, // cambiar descripcion por categoria
+      institucion,
       ficha_proyecto: JSON.stringify(req.body.ficha_proyecto),
       lider: req.body.lider,
       objetivo: req.body.objetivo,
