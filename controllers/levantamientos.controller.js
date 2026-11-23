@@ -1164,16 +1164,21 @@ levantamientosController.listUser = async (req, res) => {
  *         description: Identificador faltante o no válido.
  */
 levantamientosController.listChat = async (req, res) => {
+  const contributionId = Number(req.body.id);
+  if (!Number.isInteger(contributionId) || contributionId <= 0)
+    return res.status(400).send({ message: "ID de aporte inválido" });
+
   await databasePool
     .query({
       text: `
-			SELECT l.*
-      FROM public.levantamientos_mensajes as l
-			where levantamiento_id = ${req.body.id}
-			order by fecha_hora asc
-		`
+        SELECT l.*
+        FROM public.levantamientos_mensajes AS l
+        WHERE levantamiento_id = $1
+        ORDER BY fecha_hora ASC
+      `,
+      values: [contributionId]
     })
-    .then(result => res.status(201).json(result.rows))
+    .then(result => res.status(200).json(result.rows))
     .catch(error => res.status(400).send(error));
 };
 
@@ -1559,7 +1564,8 @@ levantamientosController.listReviewer = async (req, res) => {
  *                 description: Indica si se realizó la notificación correspondiente.
  *               report:
  *                 type: string
- *                 description: Comentario o motivo asociado con la revisión.
+ *                 maxLength: 400
+ *                 description: Justificación obligatoria al aprobar o rechazar el aporte.
  *               user_id:
  *                 type: string
  *                 format: email
@@ -1599,6 +1605,14 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     if (!REVIEW_STATUSES.has(req.body.status))
       return res.status(400).send({ message: "Estado de aporte inválido" });
 
+    const isFinalDecision = req.body.status === "APROBADO" || req.body.status === "RECHAZADO";
+    const report = String(req.body.report || "").trim();
+
+    if (isFinalDecision && !report)
+      return res.status(400).send({ message: "La justificación es obligatoria" });
+    if (report.length > 400)
+      return res.status(400).send({ message: "La justificación no puede superar 400 caracteres" });
+
     // Repite la autorización en escritura; el filtro del listado no es una barrera de seguridad.
     const { rows: authorizedRows } = await databasePool.query({
       text: `
@@ -1634,7 +1648,7 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
     values.push(req.body.status)
     fields.push(`status = $${index++}`)
 
-    if (req.body.status === "APROBADO" || req.body.status === "RECHAZADO") {
+    if (isFinalDecision) {
       values.push(reviewerEmail)
       fields.push(`id_curador = $${index++}`)
 
@@ -1642,8 +1656,8 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
       fields.push(`fecha_aceptacion = $${index++}`)
     }
 
-    if(req.body.report){
-      values.push(req.body.report)
+    if(report){
+      values.push(report)
       fields.push(`comentario_curador = $${index++}`)
     }
 
@@ -1688,12 +1702,39 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
       values.push(req.body.user_id);
     }
 
-    const query = `
+    let query = `
       UPDATE public.levantamientos
       SET ${fields.join(", ")}
       ${whereClause}
       RETURNING id
     `;
+
+    // Todo cambio acompañado de una justificación se registra en el historial en
+    // la misma sentencia, incluyendo el regreso de un aporte a revisión.
+    if (report) {
+      values.push(new Date());
+      const dateIndex = index++;
+      values.push(report);
+      const reportIndex = index++;
+      values.push(reviewerEmail);
+      const reviewerIndex = index++;
+
+      query = `
+        WITH updated AS (
+          ${query}
+        )
+        INSERT INTO public.levantamientos_mensajes(
+          levantamiento_id,
+          fecha_hora,
+          texto,
+          tipo_usuario,
+          usuario_id
+        )
+        SELECT id, $${dateIndex}, $${reportIndex}, 'REVISOR', $${reviewerIndex}
+        FROM updated
+        RETURNING levantamiento_id AS id
+      `;
+    }
 
     const updateSql = {
       text: query,
@@ -1742,9 +1783,76 @@ levantamientosController.reviewerLevantamientosStatus = async (req, res) => {
  */
 levantamientosController.deleteLevantamiento = async (req, res) => {
   try {
+    const contributionId = Number(req.params.id);
+    const reviewerEmail = normalizeEmail(req.body?.user_id);
+    const report = String(req.body?.report || "").trim();
+
+    if (!Number.isInteger(contributionId) || contributionId <= 0)
+      return res.status(400).send({ message: "ID de aporte inválido" });
+
+    // Cuando elimina una persona revisora, conserva el motivo como último evento
+    // del historial y vuelve a comprobar sus permisos sobre el proyecto.
+    if (reviewerEmail || report) {
+      if (!reviewerEmail)
+        return res.status(400).send({ message: "Correo electrónico del revisor faltante" });
+      if (!report)
+        return res.status(400).send({ message: "La justificación es obligatoria" });
+      if (report.length > 400)
+        return res.status(400).send({ message: "La justificación no puede superar 400 caracteres" });
+
+      const { rows } = await databasePool.query({
+        text: `
+          WITH authorized AS (
+            SELECT l.id
+            FROM public.levantamientos l
+            INNER JOIN public.proyectos p ON p.id = l.id_proyecto
+            WHERE l.id = $1
+              AND l.status = 'RECHAZADO'
+              AND l.usuario_id <> $2
+              AND (
+                p.id_propietario = $2
+                OR EXISTS (
+                  SELECT 1
+                  FROM public.proyectos_usuarios pu
+                  WHERE pu.proyecto_id = l.id_proyecto
+                    AND pu.correo = $2
+                    AND pu.rol IN ('administrar', 'revisar')
+                )
+              )
+          ), deleted AS (
+            DELETE FROM public.levantamientos l
+            USING authorized a
+            WHERE l.id = a.id
+            RETURNING l.id
+          )
+          INSERT INTO public.levantamientos_mensajes(
+            levantamiento_id,
+            fecha_hora,
+            texto,
+            tipo_usuario,
+            usuario_id
+          )
+          SELECT id, $3, $4, 'REVISOR', $2
+          FROM deleted
+          RETURNING levantamiento_id AS id
+        `,
+        values: [contributionId, reviewerEmail, new Date(), report]
+      });
+
+      if (!rows.length)
+        return res.status(403).send({
+          message: "No tienes permiso para eliminar este aporte o ya no está rechazado"
+        });
+
+      return res.status(200).send({
+        status: "ok",
+        message: "levantamiento eliminado"
+      });
+    }
+
     const deleteSql = {
       text: "DELETE FROM public.levantamientos WHERE id = $1",
-      values: [req.params.id]
+      values: [contributionId]
     };
     const { rows } = await databasePool.query(deleteSql);
     return res.status(200).send({
